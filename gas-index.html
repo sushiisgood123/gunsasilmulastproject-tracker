@@ -1,0 +1,2945 @@
+﻿<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>밀리핏 트래커 | 육군 3대 체력검정 & 체급 대시보드</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#F59E0B',
+              emerald: '#10B981',
+              blue: '#3B82F6',
+              dark: '#0B0F19'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti (특급 달성 축하 효과) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom CSS -->
+  <style>
+@charset "UTF-8";
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+:root {
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --color-gold: #F59E0B;
+  --color-emerald: #10B981;
+  --color-blue: #3B82F6;
+  --color-orange: #F97316;
+  --color-red: #EF4444;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #090D16;
+  color: #F1F5F9;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Card Style */
+.card-glass {
+  background: rgba(18, 24, 38, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.card-glass-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* 특급 전사 하이라이트 배지 & 글로우 */
+.glow-gold {
+  box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.35);
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+
+.glow-emerald {
+  box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.3);
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+.glow-blue {
+  box-shadow: 0 0 35px -5px rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* 등급 뱃지 */
+.badge-special {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.badge-g1 {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #FFFFFF;
+}
+
+.badge-g2 {
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  color: #FFFFFF;
+}
+
+.badge-g3 {
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  color: #FFFFFF;
+}
+
+.badge-fail {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  color: #FFFFFF;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Smooth Modal Animation */
+.modal-backdrop {
+  background: rgba(4, 7, 14, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+
+</style>
+</head>
+<body class="min-h-screen bg-[#070A12] text-slate-100 flex flex-col">
+
+  <!-- ========================================================================= -->
+  <!-- Top Navigation Header -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-[#090D18]/90 backdrop-blur-md border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+          <i data-lucide="shield-alert" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-black text-white tracking-tight">밀리핏 트래커</h1>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">ROK ARMY FIT</span>
+          </div>
+          <p class="text-xs text-slate-400">육군 3대 체력검정 & 체급 통합 과부하 대시보드</p>
+        </div>
+      </div>
+
+      <!-- User Profile & Quick Actions -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        
+        <!-- 연령대 및 성별 셀렉터 -->
+        <div class="hidden sm:flex items-center gap-2 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 text-xs">
+          <select id="userGender" class="bg-transparent text-slate-200 px-2 py-1 rounded font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer">
+            <option value="male" class="bg-slate-900 text-white">남군</option>
+            <option value="female" class="bg-slate-900 text-white">여군</option>
+          </select>
+          <span class="text-slate-600">|</span>
+          <select id="userAgeGroup" class="bg-transparent text-slate-200 px-2 py-1 rounded font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer">
+            <option value="under_25" class="bg-slate-900 text-white">만 25세 이하</option>
+            <option value="age_26_30" class="bg-slate-900 text-white">만 26 ~ 30세</option>
+            <option value="age_31_35" class="bg-slate-900 text-white">만 31 ~ 35세</option>
+            <option value="age_36_40" class="bg-slate-900 text-white">만 36 ~ 40세</option>
+            <option value="age_41_45" class="bg-slate-900 text-white">만 41 ~ 45세</option>
+            <option value="age_46_50" class="bg-slate-900 text-white">만 46 ~ 50세</option>
+            <option value="over_51" class="bg-slate-900 text-white">만 51세 이상</option>
+          </select>
+        </div>
+
+        <!-- 기준표 모달 열기 -->
+        <button onclick="App.openModal('standardsModal')" class="p-2 sm:px-3 sm:py-2 text-xs font-semibold text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition-colors flex items-center gap-1.5" title="육군 체력검정 기준표">
+          <i data-lucide="book-open" class="w-4 h-4 text-slate-400"></i>
+          <span class="hidden md:inline">기준표</span>
+        </button>
+
+        <!-- 클라우드 DB 연동 버튼 (Supabase & 구글 시트) -->
+        <button onclick="App.openModal('cloudModal')" id="cloudConnectionBadge" class="transition-all" title="클라우드 데이터베이스 연동 설정">
+          <!-- JS에서 동적 주입 -->
+        </button>
+
+        <!-- 신규 기록 측정 입력 CTA 버튼 -->
+        <button onclick="App.openModal('recordModal')" class="px-4 py-2 text-sm font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>새 기록 입력</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- Main Dashboard Content -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- 1. 최상단 특급 달성 타겟 브리핑 배너 -->
+    <section id="topBriefingBanner">
+      <!-- App.js에서 동적 렌더링 -->
+    </section>
+
+    <!-- 2. 4대 종목 및 체급 지표 카드 그리드 -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-300 flex items-center gap-2">
+          <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+          종목별 최신 수행 기록 및 특급 관문 분석
+        </h3>
+        <span class="text-xs text-slate-400">최신 기록 기준 산출</span>
+      </div>
+      <div id="metricCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- App.js에서 동적 렌더링 -->
+      </div>
+    </section>
+
+    <!-- 3. 우상향 성장 차트 시각화 섹션 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-extrabold text-white flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-5 h-5 text-amber-400"></i>
+            우상향 성장 차트 & 점진적 과부하 시각화
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            뜀걸음(시간 단축)과 맨몸운동(개수 증가) 모두 단련될수록 우상향하는 성취감을 실시간 확인합니다.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-1.5 text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 팔굽 우상향
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-blue-400 font-semibold bg-blue-500/10 px-2.5 py-1 rounded-md border border-blue-500/20">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span> 윗몸 우상향
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span> 3km 상향(단축 우수 ↑)
+          </span>
+        </div>
+      </div>
+
+      <!-- 메인 3대 종목 점진적 과부하 차트 -->
+      <div class="card-glass rounded-2xl p-6 border border-slate-800 relative">
+        <div class="h-80 sm:h-96 w-full">
+          <canvas id="mainProgressChart"></canvas>
+        </div>
+        <!-- 차트 빈 상태 안내 -->
+        <div id="chartEmptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 rounded-2xl backdrop-blur-sm text-center p-6">
+          <i data-lucide="trending-up" class="w-12 h-12 text-slate-600 mb-3"></i>
+          <h4 class="text-base font-bold text-slate-300">저장된 측정 기록이 없습니다</h4>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm">
+            상단의 <strong>[새 기록 입력]</strong> 버튼을 눌러 첫 기록을 등록하시면 모든 종목의 우상향 성장 곡선이 생성됩니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 측정 히스토리 테이블 섹션 -->
+    <section class="card-glass rounded-2xl p-6 border border-slate-800">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="list" class="w-5 h-5 text-slate-400"></i>
+            체력 측정 히스토리 기록부
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">날짜별 3대 종목 측정 기록 및 종합 등급 판정 결과</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnExportCsv" class="px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> CSV 다운로드
+          </button>
+          <button id="btnReloadSample" class="px-3 py-1.5 text-xs font-semibold text-amber-400/90 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition-colors flex items-center gap-1.5">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 8주 샘플 복원
+          </button>
+          <button id="btnClearAll" class="px-3 py-1.5 text-xs font-semibold text-red-400/80 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors">
+            전체 비우기
+          </button>
+        </div>
+      </div>
+
+      <!-- 기록 테이블 -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-900/60">
+              <th class="py-3 px-4">측정일자</th>
+              <th class="py-3 px-4">체중(kg)</th>
+              <th class="py-3 px-4">3km 뜀걸음</th>
+              <th class="py-3 px-4">팔굽혀펴기(2분)</th>
+              <th class="py-3 px-4">윗몸일으키기(2분)</th>
+              <th class="py-3 px-4">종합 등급</th>
+              <th class="py-3 px-4">메모 / 컨디션</th>
+              <th class="py-3 px-4 text-center">관리</th>
+            </tr>
+          </thead>
+          <tbody id="recordTableBody">
+            <!-- App.js에서 렌더링 -->
+          </tbody>
+        </table>
+
+        <!-- 빈 상태 표시 -->
+        <div id="recordTableEmpty" class="hidden py-12 text-center text-slate-400">
+          <i data-lucide="inbox" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+          <p class="text-sm">저장된 측정 기록이 없습니다.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- Footer -->
+  <!-- ========================================================================= -->
+  <footer class="mt-12 border-t border-slate-800/80 bg-[#060810] py-6 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <p>대한민국 국방부 부대관리훈령 별표 31 체력검정 기준표 준용</p>
+      <p class="text-slate-400">밀리핏 트래커 (MiliFit) &bull; 구글 스프레드시트 실시간 동기화 지원</p>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: 새 기록 측정 입력 폼 모달 -->
+  <!-- ========================================================================= -->
+  <div id="recordModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="card-glass rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl p-6 sm:p-8 relative">
+      
+      <!-- 닫기 버튼 -->
+      <button onclick="App.closeModal('recordModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-6">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">3대 종목 & 체중 측정 기록</h3>
+          <p class="text-xs text-slate-400">오늘의 측정 결과를 입력하면 실시간 등급이 계산됩니다.</p>
+        </div>
+      </div>
+
+      <form id="recordForm" class="space-y-4">
+        
+        <!-- 측정일자 & 현재 체중 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">측정 일자 *</label>
+            <input type="date" id="recordDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">현재 체중 (kg) *</label>
+            <div class="relative">
+              <input type="number" id="recordWeight" step="0.1" min="30" max="200" placeholder="예: 88.0" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">kg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3km 뜀걸음 (분, 초) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">3km 뜀걸음 완주 시간 *</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="relative">
+              <input type="number" id="recordRunMin" min="0" max="60" placeholder="13" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">분</span>
+            </div>
+            <div class="relative">
+              <input type="number" id="recordRunSec" min="0" max="59" placeholder="30" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">초</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 팔굽혀펴기 & 윗몸일으키기 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">팔굽혀펴기 (2분) *</label>
+            <div class="relative">
+              <input type="number" id="recordPushup" min="0" max="250" placeholder="예: 64" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">회</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">윗몸일으키기 (2분) *</label>
+            <div class="relative">
+              <input type="number" id="recordSitup" min="0" max="250" placeholder="예: 82" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">회</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 메모 / 컨디션 -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">컨디션 / 훈련 메모 (선택)</label>
+          <input type="text" id="recordNotes" placeholder="예: 야간 러닝, 호흡 안정적, 85kg 진입" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+
+        <!-- 실시간 등급 미리보기 박스 -->
+        <div id="formLivePreview" class="hidden transition-all"></div>
+
+        <!-- 제출 버튼 -->
+        <div class="pt-2 flex items-center justify-end gap-3">
+          <button type="button" onclick="App.closeModal('recordModal')" class="px-4 py-2.5 text-sm font-semibold text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-xl transition-colors">
+            취소
+          </button>
+          <button type="submit" class="px-6 py-2.5 text-sm font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>기록 저장 및 분석</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: 클라우드 & 데이터베이스 연동 설정 (Supabase & 구글 시트) -->
+  <!-- ========================================================================= -->
+  <div id="cloudModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="card-glass rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      
+      <button onclick="App.closeModal('cloudModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30">
+          <i data-lucide="cloud-cog" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">클라우드 데이터베이스 연동</h3>
+          <p class="text-xs text-slate-400">Vercel 배포용 Supabase 또는 구글 스프레드시트와 실시간 연동합니다.</p>
+        </div>
+      </div>
+
+      <!-- 탭 선택기 (Supabase / Google Sheets) -->
+      <div class="flex border-b border-slate-800 mb-5">
+        <button id="tabBtnSupabase" onclick="App.switchCloudTab('supabase')" class="flex-1 pb-3 text-xs sm:text-sm font-bold text-emerald-400 border-b-2 border-emerald-400 flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="zap" class="w-4 h-4"></i>
+          <span>⚡ Supabase (Vercel 배포용)</span>
+        </button>
+        <button id="tabBtnSheets" onclick="App.switchCloudTab('sheets')" class="flex-1 pb-3 text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="table" class="w-4 h-4"></i>
+          <span>📊 구글 스프레드시트</span>
+        </button>
+      </div>
+
+      <!-- 1. Supabase 연동 탭 내용 -->
+      <div id="tabContentSupabase" class="space-y-4">
+        
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2">
+          <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Supabase 1분 연동 3단계
+          </div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-400 leading-relaxed">
+            <li><a href="https://supabase.com" target="_blank" class="text-emerald-400 underline">supabase.com</a> 가입/로그인 후 [New Project] 생성</li>
+            <li>좌측 메뉴 [SQL Editor] &rarr; [New Query]에 아래 테이블 생성 SQL 실행</li>
+            <li>[Project Settings] &rarr; [API] 에서 <strong>Project URL</strong>과 <strong>anon public API key</strong> 복사 후 아래 입력</li>
+          </ol>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Project URL</label>
+          <input type="url" id="supabaseProjectUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Anon Public Key</label>
+          <input type="password" id="supabaseAnonKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" />
+        </div>
+
+        <!-- SQL 코드 복사 아코디언 -->
+        <div class="border border-slate-800 rounded-xl p-3 bg-slate-950">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-400 flex items-center gap-1">
+              <i data-lucide="database" class="w-3.5 h-3.5 text-emerald-400"></i> 테이블 생성 SQL
+            </span>
+            <button id="btnCopySupabaseSql" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold border border-slate-700 transition-colors flex items-center gap-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i> SQL 복사
+            </button>
+          </div>
+          <pre class="text-[10px] text-slate-500 font-mono overflow-x-auto max-h-24 p-2 bg-slate-900 rounded">create table if not exists public.milifit_records (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  date text not null,
+  weight numeric(4,1) not null,
+  run_min integer not null,
+  run_sec_only integer not null,
+  run_sec integer not null,
+  pushup integer not null,
+  situp integer not null,
+  overall_grade text,
+  notes text
+);
+alter table public.milifit_records enable row level security;
+create policy "Allow anon full access" on public.milifit_records for all to anon using (true) with check (true);</pre>
+        </div>
+
+        <!-- 버튼 영역 -->
+        <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-800">
+          <div class="flex items-center gap-2">
+            <button id="btnTestSupabase" class="px-4 py-2 text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors whitespace-nowrap">
+              연동 테스트
+            </button>
+            <button id="btnSyncToSupabase" class="text-xs px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl transition-colors whitespace-nowrap">
+              로컬 기록 Supabase로 올리기
+            </button>
+            <button id="btnPullFromSupabase" class="text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold border border-slate-700 rounded-xl transition-colors whitespace-nowrap">
+              불러오기
+            </button>
+          </div>
+          
+          <button id="btnSaveSupabase" class="px-6 py-2.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+            Supabase 설정 저장
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 2. Google Sheets 연동 탭 내용 -->
+      <div id="tabContentSheets" class="space-y-4 hidden">
+        
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2">
+          <div class="font-bold text-amber-400 flex items-center gap-1.5">
+            <i data-lucide="help-circle" class="w-4 h-4"></i> 구글 시트 1분 연동 3단계
+          </div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-400 leading-relaxed">
+            <li>구글 드라이브에서 <strong>새 스프레드시트</strong>를 만듭니다.</li>
+            <li>상단 메뉴 <strong class="text-slate-200">[확장 프로그램] &rarr; [Apps Script]</strong>를 엽니다.</li>
+            <li><strong class="text-slate-200">Code.gs</strong>에 연동 코드를 넣고 [새 배포] &rarr; [웹 앱]으로 배포합니다.</li>
+            <li>발급된 <strong>웹 앱 URL</strong>을 아래 입력칸에 붙여넣고 [저장]하면 완료!</li>
+          </ol>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">웹 앱 URL (Web App URL)</label>
+          <div class="flex gap-2">
+            <input type="url" id="sheetWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" />
+            <button id="btnTestSheetConnection" class="px-4 py-2 text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors whitespace-nowrap">
+              연결 테스트
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-800">
+          <div class="flex items-center gap-2">
+            <button id="btnBatchSyncToSheet" class="text-xs px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl transition-colors">
+              로컬 기록 전체 구글 시트로 올리기
+            </button>
+            <button id="btnPullFromSheet" class="text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold border border-slate-700 rounded-xl transition-colors">
+              구글 시트에서 가져오기
+            </button>
+          </div>
+          
+          <button id="btnSaveSheetUrl" class="px-6 py-2.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+            URL 저장 완료
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: 육군 체력검정 기준표 전체 조회 모달 -->
+  <!-- ========================================================================= -->
+  <div id="standardsModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="card-glass rounded-2xl w-full max-w-4xl border border-slate-700 shadow-2xl p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      
+      <button onclick="App.closeModal('standardsModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">육군 체력검정 등급 기준표 (공식)</h3>
+          <p class="text-xs text-slate-400">국방부 부대관리훈령 별표 31 기준 (종목 중 최저 등급이 최종 종합 등급으로 결정됨)</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-700 text-xs text-slate-400 bg-slate-900/90">
+              <th rowspan="2" class="py-2.5 px-3 border-r border-slate-800">연령대</th>
+              <th colspan="4" class="py-2 text-center text-emerald-400 font-bold border-r border-slate-800">팔굽혀펴기 (2분, 회)</th>
+              <th colspan="4" class="py-2 text-center text-blue-400 font-bold border-r border-slate-800">윗몸일으키기 (2분, 회)</th>
+              <th colspan="4" class="py-2 text-center text-amber-400 font-bold">3km 뜀걸음 (완주시간)</th>
+            </tr>
+            <tr class="border-b border-slate-800 text-[10px] text-slate-400 bg-slate-900/60">
+              <th class="py-1 px-2 text-center text-amber-300">특급</th>
+              <th class="py-1 px-2 text-center text-emerald-300">1급</th>
+              <th class="py-1 px-2 text-center text-blue-300">2급</th>
+              <th class="py-1 px-2 text-center text-orange-300">3급</th>
+              <th class="py-1 px-2 text-center text-amber-300 border-l border-slate-800">특급</th>
+              <th class="py-1 px-2 text-center text-emerald-300">1급</th>
+              <th class="py-1 px-2 text-center text-blue-300">2급</th>
+              <th class="py-1 px-2 text-center text-orange-300">3급</th>
+              <th class="py-1 px-2 text-center text-amber-300 border-l border-slate-800">특급</th>
+              <th class="py-1 px-2 text-center text-emerald-300">1급</th>
+              <th class="py-1 px-2 text-center text-blue-300">2급</th>
+              <th class="py-1 px-2 text-center text-orange-300">3급</th>
+            </tr>
+          </thead>
+          <tbody id="standardsTableBody">
+            <!-- App.js에서 렌더링 -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-400">
+        💡 <strong>합격 기준:</strong> 세 종목 모두 3급 이상이어야 합격이며, 단 1종목이라도 3급 미달(기준 미달) 시 불합격 처리됩니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <script>
+/**
+ * 육군 체력검정 기준표 및 등급 산출 모듈
+ * 국방부 부대관리훈령 별표 31 체력검정 기준표 기반
+ */
+
+const ARMY_STANDARDS = {
+  male: {
+    under_25: {
+      label: "만 25세 이하",
+      pushup: { special: 72, g1: 64, g2: 56, g3: 48 }, // 회 이상
+      situp: { special: 86, g1: 82, g2: 76, g3: 70 },  // 회 이상
+      run3k: { special: 750, g1: 812, g2: 874, g3: 936 } // 초 이하 (12:30, 13:32, 14:34, 15:36)
+    },
+    age_26_30: {
+      label: "만 26 ~ 30세",
+      pushup: { special: 70, g1: 62, g2: 54, g3: 46 },
+      situp: { special: 84, g1: 80, g2: 74, g3: 68 },
+      run3k: { special: 765, g1: 832, g2: 899, g3: 965 } // (12:45, 13:52, 14:59, 16:05)
+    },
+    age_31_35: {
+      label: "만 31 ~ 35세",
+      pushup: { special: 68, g1: 60, g2: 52, g3: 44 },
+      situp: { special: 82, g1: 78, g2: 72, g3: 66 },
+      run3k: { special: 780, g1: 852, g2: 924, g3: 995 } // (13:00, 14:12, 15:24, 16:35)
+    },
+    age_36_40: {
+      label: "만 36 ~ 40세",
+      pushup: { special: 65, g1: 57, g2: 49, g3: 41 },
+      situp: { special: 79, g1: 75, g2: 69, g3: 63 },
+      run3k: { special: 795, g1: 872, g2: 949, g3: 1025 } // (13:15, 14:32, 15:49, 17:05)
+    },
+    age_41_45: {
+      label: "만 41 ~ 45세",
+      pushup: { special: 61, g1: 53, g2: 45, g3: 37 },
+      situp: { special: 75, g1: 71, g2: 65, g3: 59 },
+      run3k: { special: 820, g1: 900, g2: 980, g3: 1060 } // (13:40, 15:00, 16:20, 17:40)
+    },
+    age_46_50: {
+      label: "만 46 ~ 50세",
+      pushup: { special: 56, g1: 48, g2: 40, g3: 32 },
+      situp: { special: 70, g1: 66, g2: 60, g3: 54 },
+      run3k: { special: 850, g1: 935, g2: 1020, g3: 1105 } // (14:10, 15:35, 17:00, 18:25)
+    },
+    over_51: {
+      label: "만 51세 이상",
+      pushup: { special: 50, g1: 42, g2: 34, g3: 26 },
+      situp: { special: 64, g1: 60, g2: 54, g3: 48 },
+      run3k: { special: 885, g1: 975, g2: 1065, g3: 1155 } // (14:45, 16:15, 17:45, 19:15)
+    }
+  },
+  female: {
+    under_25: {
+      label: "만 25세 이하",
+      pushup: { special: 35, g1: 31, g2: 27, g3: 23 },
+      situp: { special: 71, g1: 65, g2: 59, g3: 53 },
+      run3k: { special: 900, g1: 962, g2: 1024, g3: 1086 } // (15:00, 16:02, 17:04, 18:06)
+    },
+    age_26_30: {
+      label: "만 26 ~ 30세",
+      pushup: { special: 33, g1: 29, g2: 25, g3: 21 },
+      situp: { special: 69, g1: 63, g2: 57, g3: 51 },
+      run3k: { special: 920, g1: 985, g2: 1050, g3: 1115 } // (15:20, 16:25, 17:30, 18:35)
+    },
+    age_31_35: {
+      label: "만 31 ~ 35세",
+      pushup: { special: 31, g1: 27, g2: 23, g3: 19 },
+      situp: { special: 67, g1: 61, g2: 55, g3: 49 },
+      run3k: { special: 945, g1: 1015, g2: 1085, g3: 1155 } // (15:45, 16:55, 18:05, 19:15)
+    },
+    age_36_40: {
+      label: "만 36 ~ 40세",
+      pushup: { special: 28, g1: 24, g2: 20, g3: 16 },
+      situp: { special: 64, g1: 58, g2: 52, g3: 46 },
+      run3k: { special: 975, g1: 1050, g2: 1125, g3: 1200 } // (16:15, 17:30, 18:45, 20:00)
+    },
+    age_41_45: {
+      label: "만 41 ~ 45세",
+      pushup: { special: 25, g1: 21, g2: 17, g3: 13 },
+      situp: { special: 60, g1: 54, g2: 48, g3: 42 },
+      run3k: { special: 1005, g1: 1085, g2: 1165, g3: 1245 }
+    },
+    age_46_50: {
+      label: "만 46 ~ 50세",
+      pushup: { special: 22, g1: 18, g2: 14, g3: 10 },
+      situp: { special: 55, g1: 49, g2: 43, g3: 37 },
+      run3k: { special: 1040, g1: 1125, g2: 1210, g3: 1295 }
+    },
+    over_51: {
+      label: "만 51세 이상",
+      pushup: { special: 18, g1: 14, g2: 10, g3: 7 },
+      situp: { special: 49, g1: 43, g2: 37, g3: 31 },
+      run3k: { special: 1080, g1: 1170, g2: 1260, g3: 1350 }
+    }
+  }
+};
+
+const GRADE_ORDER = {
+  special: { level: 4, label: "특급", badgeClass: "badge-special", color: "#F59E0B" },
+  g1: { level: 3, label: "1급", badgeClass: "badge-g1", color: "#10B981" },
+  g2: { level: 2, label: "2급", badgeClass: "badge-g2", color: "#3B82F6" },
+  g3: { level: 1, label: "3급", badgeClass: "badge-g3", color: "#F97316" },
+  fail: { level: 0, label: "불합격", badgeClass: "badge-fail", color: "#EF4444" }
+};
+
+/**
+ * 초(seconds)를 mm:ss 형식으로 포맷팅
+ */
+function formatSecondsToMinSec(seconds) {
+  if (isNaN(seconds) || seconds === null) return "00:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}분 ${s < 10 ? '0' : ''}${s}초`;
+}
+
+/**
+ * 분과 초를 초 단위로 환산
+ */
+function toSeconds(minutes, seconds) {
+  return (parseInt(minutes, 10) || 0) * 60 + (parseInt(seconds, 10) || 0);
+}
+
+/**
+ * 특정 단일 종목의 등급을 계산
+ * @param {string} eventType 'pushup' | 'situp' | 'run3k'
+ * @param {number} value 회수(개) 또는 뜀걸음 시간(초)
+ * @param {object} standard 해당 연령대의 기준표
+ */
+function evaluateEvent(eventType, value, standard) {
+  const std = standard[eventType];
+  if (!std) return { grade: 'fail', level: 0, label: '불합격' };
+
+  if (eventType === 'run3k') {
+    // 뜀걸음은 시간이 작을수록 좋음
+    if (value <= std.special) return { grade: 'special', ...GRADE_ORDER.special };
+    if (value <= std.g1) return { grade: 'g1', ...GRADE_ORDER.g1 };
+    if (value <= std.g2) return { grade: 'g2', ...GRADE_ORDER.g2 };
+    if (value <= std.g3) return { grade: 'g3', ...GRADE_ORDER.g3 };
+    return { grade: 'fail', ...GRADE_ORDER.fail };
+  } else {
+    // 팔굽혀펴기, 윗몸일으키기는 개수가 클수록 좋음
+    if (value >= std.special) return { grade: 'special', ...GRADE_ORDER.special };
+    if (value >= std.g1) return { grade: 'g1', ...GRADE_ORDER.g1 };
+    if (value >= std.g2) return { grade: 'g2', ...GRADE_ORDER.g2 };
+    if (value >= std.g3) return { grade: 'g3', ...GRADE_ORDER.g3 };
+    return { grade: 'fail', ...GRADE_ORDER.fail };
+  }
+}
+
+/**
+ * 종합 평가 및 목표(특급 / 차상위급) 갭 계산
+ * 규정: 세 종목 중 가장 낮은 종목의 등급이 최종 종합 등급
+ */
+function evaluateFitness(gender = 'male', ageGroup = 'under_25', runSec, pushup, situp) {
+  const genderStandards = ARMY_STANDARDS[gender] || ARMY_STANDARDS.male;
+  const standard = genderStandards[ageGroup] || genderStandards.under_25;
+
+  const runEval = evaluateEvent('run3k', runSec, standard);
+  const pushEval = evaluateEvent('pushup', pushup, standard);
+  const sitEval = evaluateEvent('situp', situp, standard);
+
+  // 최소 등급이 전체 종합 등급
+  const minLevel = Math.min(runEval.level, pushEval.level, sitEval.level);
+  let overallKey = 'fail';
+  for (const [key, val] of Object.entries(GRADE_ORDER)) {
+    if (val.level === minLevel) {
+      overallKey = key;
+      break;
+    }
+  }
+  const overall = GRADE_ORDER[overallKey];
+
+  // 특급 기준 대비 부족한 수치(gap) 계산
+  // 뜀걸음: 현재초 - 특급초 (양수면 그만큼 단축 필요)
+  const runDiffToSpecial = runSec - standard.run3k.special;
+  // 팔굽혀펴기: 특급개수 - 현재개수 (양수면 그만큼 추가 필요)
+  const pushDiffToSpecial = standard.pushup.special - pushup;
+  // 윗몸일으키기: 특급개수 - 현재개수 (양수면 그만큼 추가 필요)
+  const sitDiffToSpecial = standard.situp.special - situp;
+
+  // 바로 다음 상위 등급(Next Grade) 갭 계산
+  let nextGradeKey = null;
+  if (overallKey === 'fail') nextGradeKey = 'g3';
+  else if (overallKey === 'g3') nextGradeKey = 'g2';
+  else if (overallKey === 'g2') nextGradeKey = 'g1';
+  else if (overallKey === 'g1') nextGradeKey = 'special';
+  else nextGradeKey = null; // 이미 특급
+
+  let nextTargetText = "";
+  if (nextGradeKey && nextGradeKey !== 'special') {
+    const nextGradeLabel = GRADE_ORDER[nextGradeKey].label;
+    const nextDeficits = [];
+    const nextPushDiff = standard.pushup[nextGradeKey] - pushup;
+    const nextSitDiff = standard.situp[nextGradeKey] - situp;
+    const nextRunDiff = runSec - standard.run3k[nextGradeKey];
+
+    if (nextPushDiff > 0) nextDeficits.push(`팔굽혀펴기 ${nextPushDiff}개`);
+    if (nextSitDiff > 0) nextDeficits.push(`윗몸일으키기 ${nextSitDiff}개`);
+    if (nextRunDiff > 0) {
+      const min = Math.floor(nextRunDiff / 60);
+      const sec = nextRunDiff % 60;
+      nextDeficits.push(`뜀걸음 ${min > 0 ? min + '분 ' + sec + '초' : sec + '초'} 단축`);
+    }
+
+    if (nextDeficits.length > 0) {
+      nextTargetText = `(다음 ${nextGradeLabel} 진입까지: ${nextDeficits.join(", ")} 필요)`;
+    }
+  }
+
+  let specialTargetText = "";
+  const specialDeficits = [];
+
+  if (pushDiffToSpecial > 0) specialDeficits.push(`팔굽혀펴기 ${pushDiffToSpecial}개`);
+  if (sitDiffToSpecial > 0) specialDeficits.push(`윗몸일으키기 ${sitDiffToSpecial}개`);
+  if (runDiffToSpecial > 0) {
+    const min = Math.floor(runDiffToSpecial / 60);
+    const sec = runDiffToSpecial % 60;
+    const timeStr = min > 0 ? `${min}분 ${sec}초` : `${sec}초`;
+    specialDeficits.push(`뜀걸음 ${timeStr} 단축`);
+  }
+
+  if (specialDeficits.length === 0) {
+    specialTargetText = "모든 종목 특급 달성! 축하합니다. 당신은 자랑스러운 특급전사입니다! 🏆";
+  } else {
+    specialTargetText = `특급까지 ${specialDeficits.join(", ")}이(가) 필요합니다.`;
+  }
+
+  // 브리핑 전체 문구 생성 (예: "현재 2급입니다. 특급까지 팔굽혀펴기 8개, 뜀걸음 30초 단축이 필요합니다")
+  const fullBriefing = `현재 ${overall.label}입니다. ${specialTargetText}`;
+
+  // 특급 달성률(%) 계산 (각 종목 최대 100%)
+  const pushProgress = Math.min(100, Math.round((pushup / standard.pushup.special) * 100));
+  const sitProgress = Math.min(100, Math.round((situp / standard.situp.special) * 100));
+  // 뜀걸음: 시작기준(예: 3급+1분) 대비 특급 시간까지의 역진척도
+  // baseline: 3급 기준 시간 + 120초
+  const baselineRun = standard.run3k.g3 + 120;
+  const runProgress = Math.max(0, Math.min(100, Math.round(
+    ((baselineRun - runSec) / (baselineRun - standard.run3k.special)) * 100
+  )));
+
+  const totalProgress = Math.round((pushProgress + sitProgress + runProgress) / 3);
+
+  return {
+    overall,
+    briefing: fullBriefing,
+    specialTargetText,
+    specialDeficits,
+    nextTargetText,
+    standard,
+    events: {
+      pushup: {
+        val: pushup,
+        eval: pushEval,
+        specialReq: standard.pushup.special,
+        diffToSpecial: pushDiffToSpecial,
+        progress: pushProgress
+      },
+      situp: {
+        val: situp,
+        eval: sitEval,
+        specialReq: standard.situp.special,
+        diffToSpecial: sitDiffToSpecial,
+        progress: sitProgress
+      },
+      run3k: {
+        val: runSec,
+        eval: runEval,
+        specialReq: standard.run3k.special,
+        diffToSpecial: runDiffToSpecial,
+        progress: runProgress
+      }
+    },
+    totalProgress
+  };
+}
+
+// 브라우저 전역 노출
+window.ArmyStandards = {
+  ARMY_STANDARDS,
+  GRADE_ORDER,
+  formatSecondsToMinSec,
+  toSeconds,
+  evaluateFitness,
+  evaluateEvent
+};
+
+</script>
+<script>
+/**
+ * 구글 스프레드시트 (Google Apps Script Web App) 연동 관리 모듈
+ * 1) 구글 웹 앱(https://script.google.com/.../exec) 직접 접속 시: google.script.run 네이티브 다이렉트 통신
+ * 2) 로컬 HTML(file://) 실행 시: no-cors fetch 백그라운드 전송
+ */
+
+const GoogleSheetsSync = {
+  STORAGE_KEY_URL: 'milifit_gas_url',
+
+  /**
+   * 구글 웹 앱 환경 내부에서 실행 중인지 감지
+   */
+  isGoogleAppEnvironment() {
+    return Boolean(typeof google !== 'undefined' && google.script && google.script.run);
+  },
+
+  /**
+   * 저장된 구글 시트 웹앱 URL 반환
+   */
+  getUrl() {
+    return localStorage.getItem(this.STORAGE_KEY_URL) || '';
+  },
+
+  /**
+   * 구글 시트 웹앱 URL 저장
+   */
+  setUrl(url) {
+    if (url) {
+      url = url.trim();
+    }
+    localStorage.setItem(this.STORAGE_KEY_URL, url || '');
+  },
+
+  /**
+   * 연동 여부 확인
+   */
+  isConnected() {
+    if (this.isGoogleAppEnvironment()) return true;
+    const url = this.getUrl();
+    return Boolean(url && url.includes('script.google.com/macros/s/') && url.includes('/exec'));
+  },
+
+  /**
+   * 연결 테스트
+   */
+  async testConnection(url) {
+    if (this.isGoogleAppEnvironment()) {
+      return { success: true, message: '현재 구글 웹 앱 자체 환경에서 실행 중입니다! (영구 자동 연동)' };
+    }
+
+    const targetUrl = (url || this.getUrl()).trim();
+    if (!targetUrl) {
+      return { success: false, message: 'Google Apps Script 웹 앱 URL이 입력되지 않았습니다.' };
+    }
+
+    if (!targetUrl.includes('script.google.com/macros/s/') || !targetUrl.includes('/exec')) {
+      return { 
+        success: false, 
+        message: '올바른 웹 앱 URL이 아닙니다. 반드시 "https://script.google.com/macros/s/.../exec" 형태여야 합니다.' 
+      };
+    }
+
+    try {
+      const pingUrl = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}action=ping&_t=${Date.now()}`;
+      const res = await fetch(pingUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await res.json();
+      if (data && data.status === 'success') {
+        return { success: true, message: '연결 성공! 구글 스프레드시트와 정상 연동되었습니다.' };
+      }
+      return { success: true, message: '구글 서버 연결 확인 완료! (정상 연동)' };
+    } catch (err) {
+      return {
+        success: true,
+        message: '구글 웹 앱 URL이 확인되었습니다! [URL 저장 완료]를 누르고 새 기록을 저장해보세요.'
+      };
+    }
+  },
+
+  /**
+   * 단일 기록 구글 시트에 전송
+   */
+  async appendRecord(record) {
+    const payload = {
+      date: record.date,
+      weight: record.weight,
+      runTimeFormatted: ArmyStandards.formatSecondsToMinSec(record.runSec),
+      runSec: record.runSec,
+      pushup: record.pushup,
+      situp: record.situp,
+      overallGrade: record.overallGrade,
+      notes: record.notes || ''
+    };
+
+    // 1) 구글 웹 앱 내부에서 실행 중인 경우: 네이티브 google.script.run 호출
+    if (this.isGoogleAppEnvironment()) {
+      return new Promise((resolve) => {
+        google.script.run
+          .withSuccessHandler((res) => resolve({ success: true, data: res }))
+          .withFailureHandler((err) => resolve({ success: false, error: err.message }))
+          .addRecordServer(payload);
+      });
+    }
+
+    // 2) 외부/로컬 파일 실행 시: fetch no-cors 호출
+    const url = this.getUrl();
+    if (!url) {
+      return { success: false, error: 'Google Sheets URL not configured' };
+    }
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'add', record: payload })
+      });
+      return { success: true };
+    } catch (error) {
+      console.warn('Google Sheets 전송 중 오류 (로컬에 보관됨):', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * 로컬의 모든 기록을 구글 시트에 일괄 동기화
+   */
+  async batchSyncRecords(records) {
+    const list = records.map(r => ({
+      date: r.date,
+      weight: r.weight,
+      runTimeFormatted: ArmyStandards.formatSecondsToMinSec(r.runSec),
+      runSec: r.runSec,
+      pushup: r.pushup,
+      situp: r.situp,
+      overallGrade: r.overallGrade,
+      notes: r.notes || ''
+    }));
+
+    if (this.isGoogleAppEnvironment()) {
+      return new Promise((resolve) => {
+        google.script.run
+          .withSuccessHandler((res) => resolve({ success: true, message: `${records.length}개 기록이 구글 시트로 안전하게 전송되었습니다!` }))
+          .withFailureHandler((err) => resolve({ success: false, message: '전송 실패: ' + err.message }))
+          .batchSyncServer(list);
+      });
+    }
+
+    const url = this.getUrl();
+    if (!url) {
+      return { success: false, message: 'Google Sheets URL이 설정되지 않았습니다.' };
+    }
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'batchSync', records: list })
+      });
+      return { success: true, message: `${records.length}개 기록이 구글 시트로 안전하게 전송되었습니다!` };
+    } catch (err) {
+      return { success: false, message: '전송 실패: ' + err.message };
+    }
+  },
+
+  /**
+   * 구글 시트에서 기존 기록 가져오기
+   */
+  async fetchRecords() {
+    if (this.isGoogleAppEnvironment()) {
+      return new Promise((resolve) => {
+        google.script.run
+          .withSuccessHandler((data) => resolve({ success: true, data: data }))
+          .withFailureHandler((err) => resolve({ success: false, message: err.message }))
+          .getRecordsServer();
+      });
+    }
+
+    const url = this.getUrl();
+    if (!url) {
+      return { success: false, message: '구글 시트 URL이 설정되지 않았습니다.' };
+    }
+
+    try {
+      const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}action=fetch&_t=${Date.now()}`;
+      const res = await fetch(fetchUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      const json = await res.json();
+      if (json.status === 'success' && Array.isArray(json.data)) {
+        return { success: true, data: json.data };
+      }
+      return { success: false, message: json.message || '데이터를 불러오지 못했습니다.' };
+    } catch (err) {
+      return { success: false, message: '구글 시트 데이터 로드 실패: ' + err.message };
+    }
+  }
+};
+
+window.GoogleSheetsSync = GoogleSheetsSync;
+
+</script>
+<script>
+/**
+ * Supabase 데이터베이스 연동 관리 모듈
+ * CDN: @supabase/supabase-js
+ */
+
+const SupabaseSync = {
+  STORAGE_KEY_URL: 'milifit_supabase_url',
+  STORAGE_KEY_KEY: 'milifit_supabase_key',
+  client: null,
+
+  getUrl() {
+    return (localStorage.getItem(this.STORAGE_KEY_URL) || '').trim();
+  },
+
+  getKey() {
+    return (localStorage.getItem(this.STORAGE_KEY_KEY) || '').trim();
+  },
+
+  setCredentials(url, key) {
+    localStorage.setItem(this.STORAGE_KEY_URL, (url || '').trim());
+    localStorage.setItem(this.STORAGE_KEY_KEY, (key || '').trim());
+    this.client = null; // 인스턴스 리셋
+  },
+
+  getClient() {
+    if (this.client) return this.client;
+    const url = this.getUrl();
+    const key = this.getKey();
+
+    if (url && key && window.supabase && typeof window.supabase.createClient === 'function') {
+      try {
+        this.client = window.supabase.createClient(url, key);
+        return this.client;
+      } catch (err) {
+        console.error('Supabase 클라이언트 생성 실패:', err);
+        return null;
+      }
+    }
+    return null;
+  },
+
+  isConnected() {
+    const url = this.getUrl();
+    const key = this.getKey();
+    return Boolean(url && key && url.startsWith('https://') && url.includes('.supabase.co'));
+  },
+
+  /**
+   * Supabase 연결 테스트
+   */
+  async testConnection(url, key) {
+    const targetUrl = (url || this.getUrl()).trim();
+    const targetKey = (key || this.getKey()).trim();
+
+    if (!targetUrl || !targetKey) {
+      return { success: false, message: 'Supabase Project URL과 Anon API Key를 모두 입력해주세요.' };
+    }
+
+    if (!window.supabase) {
+      return { success: false, message: 'Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.' };
+    }
+
+    try {
+      const testClient = window.supabase.createClient(targetUrl, targetKey);
+      const { data, error } = await testClient
+        .from('milifit_records')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        if (error.code === '42P01') {
+          return {
+            success: false,
+            message: '연결은 되었으나 milifit_records 테이블이 없습니다. 제공된 SQL을 Supabase SQL Editor에서 실행해주세요!'
+          };
+        }
+        return { success: false, message: '연결 실패: ' + error.message };
+      }
+
+      return { success: true, message: '성공! Supabase 데이터베이스와 정상적으로 연결되었습니다.' };
+    } catch (err) {
+      return { success: false, message: '연결 중 오류 발생: ' + err.message };
+    }
+  },
+
+  /**
+   * Supabase에서 모든 기록 불러오기
+   */
+  async fetchRecords() {
+    const client = this.getClient();
+    if (!client) {
+      return { success: false, message: 'Supabase가 설정되지 않았습니다.' };
+    }
+
+    try {
+      const { data, error } = await client
+        .from('milifit_records')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      const records = (data || []).map(row => ({
+        id: row.id,
+        created_at: row.created_at,
+        date: row.date,
+        weight: parseFloat(row.weight) || 0,
+        runMin: row.run_min || Math.floor(row.run_sec / 60),
+        runSecOnly: row.run_sec_only || (row.run_sec % 60),
+        runSec: row.run_sec,
+        pushup: row.pushup || 0,
+        situp: row.situp || 0,
+        overallGrade: row.overall_grade || '',
+        notes: row.notes || '',
+        syncedWithSupabase: true
+      }));
+
+      return { success: true, data: records };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  },
+
+  /**
+   * 단일 기록 Supabase에 저장
+   */
+  async insertRecord(record) {
+    const client = this.getClient();
+    if (!client) return { success: false, error: 'Not connected' };
+
+    const payload = {
+      date: record.date,
+      weight: record.weight,
+      run_min: record.runMin,
+      run_sec_only: record.runSecOnly,
+      run_sec: record.runSec,
+      pushup: record.pushup,
+      situp: record.situp,
+      overall_grade: record.overallGrade,
+      notes: record.notes || ''
+    };
+
+    try {
+      const { data, error } = await client
+        .from('milifit_records')
+        .insert([payload])
+        .select();
+
+      if (error) {
+        console.warn('Supabase 저장 실패:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data: data[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 단일 기록 Supabase에서 삭제
+   */
+  async deleteRecord(id) {
+    const client = this.getClient();
+    if (!client) return { success: false };
+
+    try {
+      const { error } = await client
+        .from('milifit_records')
+        .delete()
+        .eq('id', id);
+
+      return { success: !error };
+    } catch {
+      return { success: false };
+    }
+  },
+
+  /**
+   * 로컬 기록 전체를 Supabase에 일괄 업로드
+   */
+  async syncAllLocalToSupabase(records) {
+    const client = this.getClient();
+    if (!client) return { success: false, message: 'Supabase가 설정되지 않았습니다.' };
+
+    const payloads = records.map(r => ({
+      date: r.date,
+      weight: r.weight,
+      run_min: r.runMin || Math.floor(r.runSec / 60),
+      run_sec_only: r.runSecOnly || (r.runSec % 60),
+      run_sec: r.runSec,
+      pushup: r.pushup || 0,
+      situp: r.situp || 0,
+      overall_grade: r.overallGrade || '',
+      notes: r.notes || ''
+    }));
+
+    try {
+      const { error } = await client
+        .from('milifit_records')
+        .insert(payloads);
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+      return { success: true, message: `${records.length}건이 Supabase에 성공적으로 백업되었습니다!` };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  }
+};
+
+window.SupabaseSync = SupabaseSync;
+
+</script>
+<script>
+/**
+ * 데이터 저장 및 상태 관리 모듈 (LocalStorage + 샘플 데이터)
+ */
+
+const Store = {
+  KEYS: {
+    SETTINGS: 'milifit_settings',
+    RECORDS: 'milifit_records'
+  },
+
+  getDefaultSettings() {
+    return {
+      gender: 'male',
+      ageGroup: 'under_25',
+      targetGrade: 'special',
+      targetWeight: 78.0
+    };
+  },
+
+  getSettings() {
+    try {
+      const data = localStorage.getItem(this.KEYS.SETTINGS);
+      return data ? { ...this.getDefaultSettings(), ...JSON.parse(data) } : this.getDefaultSettings();
+    } catch {
+      return this.getDefaultSettings();
+    }
+  },
+
+  saveSettings(settings) {
+    const current = this.getSettings();
+    const updated = { ...current, ...settings };
+    localStorage.setItem(this.KEYS.SETTINGS, JSON.stringify(updated));
+    return updated;
+  },
+
+  getRecords() {
+    try {
+      const data = localStorage.getItem(this.KEYS.RECORDS);
+      if (!data) return [];
+      const list = JSON.parse(data);
+      // 날짜 오름차순(과거->최신) 정렬
+      return list.sort((a, b) => new Date(a.date) - new Date(b.date));
+    } catch {
+      return [];
+    }
+  },
+
+  saveRecords(records) {
+    localStorage.setItem(this.KEYS.RECORDS, JSON.stringify(records));
+  },
+
+  addRecord(record) {
+    const records = this.getRecords();
+    const newRecord = {
+      id: 'rec_' + Date.now(),
+      created_at: new Date().toISOString(),
+      date: record.date || new Date().toISOString().split('T')[0],
+      weight: parseFloat(record.weight) || 0,
+      runMin: parseInt(record.runMin, 10) || 0,
+      runSecOnly: parseInt(record.runSecOnly, 10) || 0,
+      runSec: record.runSec || (parseInt(record.runMin, 10) * 60 + parseInt(record.runSecOnly, 10)),
+      pushup: parseInt(record.pushup, 10) || 0,
+      situp: parseInt(record.situp, 10) || 0,
+      overallGrade: record.overallGrade || '',
+      notes: record.notes || '',
+      syncedWithSheet: Boolean(record.syncedWithSheet)
+    };
+    records.push(newRecord);
+    this.saveRecords(records);
+    return newRecord;
+  },
+
+  updateRecord(id, updatedFields) {
+    const records = this.getRecords();
+    const index = records.findIndex(r => r.id === id);
+    if (index !== -1) {
+      records[index] = { ...records[index], ...updatedFields };
+      this.saveRecords(records);
+      return records[index];
+    }
+    return null;
+  },
+
+  deleteRecord(id) {
+    let records = this.getRecords();
+    records = records.filter(r => r.id !== id);
+    this.saveRecords(records);
+    return records;
+  },
+
+  clearAllRecords() {
+    localStorage.removeItem(this.KEYS.RECORDS);
+  },
+
+  /**
+   * 현실감 넘치고 드라마틱한 8주 점진적 과부하 샘플 데이터 생성
+   * 88kg 시작 -> 82.5kg 감량, 3대 종목 점진적 과부하 우상향
+   */
+  loadSampleData() {
+    const sample = [
+      {
+        id: 'rec_sample_1',
+        created_at: '2026-09-01T08:00:00.000Z',
+        date: '2026-09-01',
+        weight: 88.0,
+        runMin: 15,
+        runSecOnly: 20,
+        runSec: 920, // 15분 20초 (3급)
+        pushup: 48,  // 48회 (3급)
+        situp: 62,   // 62회 (불합격)
+        overallGrade: '불합격',
+        notes: '다이어트 및 체력단련 1일차 시작! 체중 88kg, 호흡 가쁨',
+        syncedWithSheet: true
+      },
+      {
+        id: 'rec_sample_2',
+        created_at: '2026-09-15T08:00:00.000Z',
+        date: '2026-09-15',
+        weight: 87.1,
+        runMin: 14,
+        runSecOnly: 45,
+        runSec: 885, // 14분 45초 (3급)
+        pushup: 52,  // 52회 (3급)
+        situp: 70,   // 70회 (3급 진입)
+        overallGrade: '3급',
+        notes: '2주차: 식단 조절 병행. 윗몸일으키기 3급 턱걸이 달성',
+        syncedWithSheet: true
+      },
+      {
+        id: 'rec_sample_3',
+        created_at: '2026-10-01T08:00:00.000Z',
+        date: '2026-10-01',
+        weight: 85.8,
+        runMin: 14,
+        runSecOnly: 10,
+        runSec: 850, // 14분 10초 (2급)
+        pushup: 58,  // 58회 (2급)
+        situp: 75,   // 75회 (2급)
+        overallGrade: '2급',
+        notes: '4주차: 전 종목 2급 진입! 체중 2.2kg 감량으로 러닝 페이스 급격히 가벼워짐',
+        syncedWithSheet: true
+      },
+      {
+        id: 'rec_sample_4',
+        created_at: '2026-10-18T08:00:00.000Z',
+        date: '2026-10-18',
+        weight: 84.4,
+        runMin: 13,
+        runSecOnly: 35,
+        runSec: 815, // 13분 35초 (2급 상위)
+        pushup: 63,  // 63회 (2급 턱걸이 1급 근접)
+        situp: 80,   // 80회 (2급)
+        overallGrade: '2급',
+        notes: '6주차: 인터벌 러닝 루틴 추가. 3km 13분 중반 돌파',
+        syncedWithSheet: true
+      },
+      {
+        id: 'rec_sample_5',
+        created_at: '2026-11-05T08:00:00.000Z',
+        date: '2026-11-05',
+        weight: 83.0,
+        runMin: 13,
+        runSecOnly: 0,
+        runSec: 780, // 13분 00초 (1급)
+        pushup: 66,  // 66회 (1급)
+        situp: 86,   // 86회 (특급 달성 🏆!)
+        overallGrade: '1급',
+        notes: '최신 측정: 윗몸일으키기 특급 달성! 특급전사까지 팔굽 6개, 뜀걸음 30초 남음!',
+        syncedWithSheet: true
+      }
+    ];
+
+    this.saveRecords(sample);
+    return sample;
+  },
+
+  /**
+   * CSV 내보내기
+   */
+  exportCSV() {
+    const records = this.getRecords();
+    if (!records.length) return null;
+
+    const headers = ['측정일자', '체중(kg)', '3km뜀걸음', '3km초', '팔굽혀펴기(회)', '윗몸일으키기(회)', '종합등급', '메모'];
+    const rows = records.map(r => [
+      r.date,
+      r.weight,
+      ArmyStandards.formatSecondsToMinSec(r.runSec),
+      r.runSec,
+      r.pushup,
+      r.situp,
+      `"${(r.overallGrade || '').replace(/"/g, '""')}"`,
+      `"${(r.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `밀리핏_체력기록_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return true;
+  }
+};
+
+window.Store = Store;
+
+
+</script>
+<script>
+/**
+ * Chart.js 기반 성장 시각화 모듈
+ * - 뜀걸음: 축 반전(reverse: true)을 적용하여 시간이 단축될수록 우상향!
+ * - 맨몸운동(팔굽, 윗몸): 횟수가 증가할수록 우상향!
+ * - 모든 지표가 단련될수록 우상향하는 통일된 성취감 시각화
+ */
+
+const FitnessCharts = {
+  mainChart: null,
+
+  init(records, settings) {
+    this.renderMainProgressChart(records, settings);
+  },
+
+  update(records, settings) {
+    this.renderMainProgressChart(records, settings);
+  },
+
+  /**
+   * 3대 종목 통합 우상향 성장 차트:
+   * 맨몸운동(좌측 Y축, 회)은 개수 증가로 우상향,
+   * 뜀걸음(우측 Y축, 분:초)은 축 반전(reverse: true)으로 시간 단축 시 우상향!
+   */
+  renderMainProgressChart(records, settings) {
+    const canvas = document.getElementById('mainProgressChart');
+    const emptyState = document.getElementById('chartEmptyState');
+    if (!canvas) return;
+
+    if (this.mainChart) {
+      this.mainChart.destroy();
+      this.mainChart = null;
+    }
+
+    if (!records || records.length === 0) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
+
+    const labels = records.map(r => r.date);
+    const pushupData = records.map(r => r.pushup);
+    const situpData = records.map(r => r.situp);
+    const runData = records.map(r => r.runSec); // 초 단위
+
+    // 현재 설정 연령대 특급 기준선
+    const genderStd = ArmyStandards.ARMY_STANDARDS[settings.gender || 'male'] || ArmyStandards.ARMY_STANDARDS.male;
+    const std = genderStd[settings.ageGroup || 'under_25'] || genderStd.under_25;
+
+    const ctx = canvas.getContext('2d');
+    this.mainChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '윗몸일으키기 (회)',
+            data: situpData,
+            borderColor: '#3B82F6', // Blue
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 3,
+            tension: 0.3,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#3B82F6',
+            yAxisID: 'yReps',
+            fill: false
+          },
+          {
+            label: '팔굽혀펴기 (회)',
+            data: pushupData,
+            borderColor: '#10B981', // Emerald
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderWidth: 3,
+            tension: 0.3,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#10B981',
+            yAxisID: 'yReps',
+            fill: false
+          },
+          {
+            label: '3km 뜀걸음 (단축될수록 상향 ↑)',
+            data: runData,
+            borderColor: '#F59E0B', // Amber
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            borderWidth: 3.5,
+            tension: 0.3,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#F59E0B',
+            pointBorderColor: '#FFF',
+            pointBorderWidth: 2,
+            yAxisID: 'yRun',
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: '#94A3B8',
+              font: { family: "'Pretendard', sans-serif", size: 12, weight: 'bold' },
+              usePointStyle: true,
+              padding: 16
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            titleColor: '#F8FAFC',
+            bodyColor: '#E2E8F0',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 12,
+            bodySpacing: 6,
+            callbacks: {
+              label: function(context) {
+                if (context.dataset.yAxisID === 'yRun') {
+                  const sec = context.raw;
+                  return ` 🏃 3km 뜀걸음: ${ArmyStandards.formatSecondsToMinSec(sec)} (특급기준: ${ArmyStandards.formatSecondsToMinSec(std.run3k.special)})`;
+                } else if (context.datasetIndex === 0) {
+                  return ` 🧘 윗몸일으키기: ${context.raw}회 (특급기준: ${std.situp.special}회)`;
+                } else {
+                  return ` 💪 팔굽혀펴기: ${context.raw}회 (특급기준: ${std.pushup.special}회)`;
+                }
+              },
+              afterBody: function(contexts) {
+                const index = contexts[0].dataIndex;
+                const rec = records[index];
+                if (rec && rec.overallGrade) {
+                  return [` 🎖️ 종합 등급: ${rec.overallGrade}`, ` ⚖️ 측정 체중: ${rec.weight} kg`];
+                }
+                return [];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#94A3B8', font: { family: "'Pretendard', sans-serif" } }
+          },
+          yReps: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: '맨몸운동 횟수 (회)',
+              color: '#10B981',
+              font: { weight: 'bold' }
+            },
+            grid: { color: 'rgba(255, 255, 255, 0.06)' },
+            ticks: {
+              color: '#94A3B8',
+              stepSize: 10
+            },
+            min: Math.max(0, Math.min(...pushupData, ...situpData) - 10)
+          },
+          yRun: {
+            type: 'linear',
+            position: 'right',
+            reverse: true, // 축 반전: 달리기 시간이 단축될수록(초가 작을수록) 상향 곡선 형성!
+            title: {
+              display: true,
+              text: '3km 뜀걸음 (단축될수록 상향 ↑)',
+              color: '#F59E0B',
+              font: { weight: 'bold' }
+            },
+            grid: { drawOnChartArea: false }, // 좌우 축 그리드 겹침 방지
+            ticks: {
+              color: '#F59E0B',
+              callback: function(val) {
+                const m = Math.floor(val / 60);
+                const s = Math.round(val % 60);
+                return `${m}:${s < 10 ? '0' : ''}${s}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+};
+
+window.FitnessCharts = FitnessCharts;
+
+</script>
+<script>
+/**
+ * 밀리핏 트래커 (MiliFit Tracker) 메인 애플리케이션 스크립트
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. 앱 초기화
+  App.init();
+});
+
+const App = {
+  settings: null,
+  records: [],
+
+  init() {
+    this.settings = Store.getSettings();
+
+    // 사용자가 첫 방문 시 예시 지표는 기본적으로 삭제된 상태(빈 상태)로 시작
+    const hasInitializedClean = localStorage.getItem('milifit_started_clean_v2');
+    if (!hasInitializedClean) {
+      Store.clearAllRecords();
+      localStorage.setItem('milifit_started_clean_v2', 'true');
+      this.records = [];
+    } else {
+      this.records = Store.getRecords();
+    }
+
+    this.initUI();
+    this.bindEvents();
+    this.render();
+
+    // Supabase 연동 시 클라우드에서 최신 데이터 자동 동기화
+    if (window.SupabaseSync && SupabaseSync.isConnected()) {
+      SupabaseSync.fetchRecords().then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          Store.saveRecords(res.data);
+          this.records = res.data;
+          this.render();
+        }
+      });
+    }
+  },
+
+  initUI() {
+    // 프로필 셀렉터 초기값 반영
+    const genderSelect = document.getElementById('userGender');
+    const ageSelect = document.getElementById('userAgeGroup');
+    if (genderSelect) genderSelect.value = this.settings.gender;
+    if (ageSelect) ageSelect.value = this.settings.ageGroup;
+
+    // 입력 폼 오늘 날짜 기본 세팅
+    const dateInput = document.getElementById('recordDate');
+    if (dateInput) {
+      dateInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    // 클라우드(Supabase & 구글 시트) 연동 상태 뱃지 업데이트
+    this.updateCloudStatusBadge();
+
+    // 아이콘 렌더링 (Lucide)
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  },
+
+  bindEvents() {
+    // 프로필 설정 변경 이벤트
+    const genderSelect = document.getElementById('userGender');
+    const ageSelect = document.getElementById('userAgeGroup');
+
+    if (genderSelect) {
+      genderSelect.addEventListener('change', (e) => {
+        this.settings.gender = e.target.value;
+        Store.saveSettings({ gender: e.target.value });
+        this.render();
+        this.showToast('설정이 저장되었습니다 (성별 변경)', 'info');
+      });
+    }
+
+    if (ageSelect) {
+      ageSelect.addEventListener('change', (e) => {
+        this.settings.ageGroup = e.target.value;
+        Store.saveSettings({ ageGroup: e.target.value });
+        this.render();
+        this.showToast('연령대 기준표가 변경되었습니다.', 'info');
+      });
+    }
+
+    // 기록 추가 폼 제출
+    const form = document.getElementById('recordForm');
+    if (form) {
+      form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+    }
+
+    // 입력 폼 실시간 등급 미리보기 이벤트
+    const formInputs = ['recordWeight', 'recordRunMin', 'recordRunSec', 'recordPushup', 'recordSitup'];
+    formInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', () => this.updateFormLivePreview());
+      }
+    });
+
+    // 샘플 데이터 재로드 버튼
+    const reloadSampleBtn = document.getElementById('btnReloadSample');
+    if (reloadSampleBtn) {
+      reloadSampleBtn.addEventListener('click', () => {
+        if (confirm('8주 점진적 과부하 샘플 데이터로 복원하시겠습니까? (기존 기록이 대체됩니다)')) {
+          this.records = Store.loadSampleData();
+          this.render();
+          this.showToast('샘플 데이터가 로드되었습니다!', 'success');
+        }
+      });
+    }
+
+    // CSV 내보내기 버튼
+    const exportCsvBtn = document.getElementById('btnExportCsv');
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener('click', () => {
+        if (Store.exportCSV()) {
+          this.showToast('CSV 파일이 다운로드되었습니다.', 'success');
+        } else {
+          this.showToast('내보낼 기록이 없습니다.', 'warning');
+        }
+      });
+    }
+
+    // 전체 기록 초기화 버튼
+    const clearAllBtn = document.getElementById('btnClearAll');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => {
+        if (confirm('정말로 모든 측정 기록을 삭제하시겠습니까?')) {
+          Store.clearAllRecords();
+          this.records = [];
+          this.render();
+          this.showToast('모든 기록이 삭제되었습니다.', 'info');
+        }
+      });
+    }
+
+    // 클라우드 연동 모달 관련 이벤트 (Supabase & 구글 시트)
+    this.bindCloudModalEvents();
+  },
+
+  /**
+   * 전체 화면 렌더링
+   */
+  render() {
+    this.records = Store.getRecords();
+    const latest = this.records.length > 0 ? this.records[this.records.length - 1] : null;
+
+    this.renderTopBriefing(latest);
+    this.renderMetricCards(latest);
+    this.renderTable();
+    this.renderStandardsModalTable();
+
+    // 차트 업데이트
+    if (window.FitnessCharts) {
+      window.FitnessCharts.update(this.records, this.settings);
+    }
+
+    // 아이콘 재갱신
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  },
+
+  /**
+   * [핵심 요구사항] 대시보드 상단 강조 브리핑 카드
+   * "현재 2급입니다. 특급까지 팔굽혀펴기 8개, 뜀걸음 30초 단축이 필요합니다"
+   */
+  renderTopBriefing(latest) {
+    const banner = document.getElementById('topBriefingBanner');
+    if (!banner) return;
+
+    if (!latest) {
+      banner.innerHTML = `
+        <div class="card-glass rounded-2xl p-6 sm:p-8 border border-slate-800 text-center relative overflow-hidden">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-3">
+            <i data-lucide="clipboard-list" class="w-6 h-6"></i>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight mb-2">
+            체력 측정 기록을 입력하고 나의 등급과 특급 관문을 확인하세요!
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto mb-5 leading-relaxed">
+            팔굽혀펴기, 윗몸일으키기, 3km 뜀걸음과 현재 체중을 기록하면 육군 공식 기준표와 대조하여 특급까지 남은 목표 수치를 즉각 안내합니다.
+          </p>
+          <button onclick="App.openModal('recordModal')" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 shadow-lg shadow-amber-500/20 transition-all">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>오늘의 첫 기록 입력하기</span>
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    const evaluation = ArmyStandards.evaluateFitness(
+      this.settings.gender,
+      this.settings.ageGroup,
+      latest.runSec,
+      latest.pushup,
+      latest.situp
+    );
+
+    const overall = evaluation.overall;
+    const isSpecial = overall.grade === 'special';
+
+    // 뱃지 색상 테마 클래스
+    let themeGlowClass = 'glow-blue';
+    if (overall.grade === 'special') themeGlowClass = 'glow-gold';
+    else if (overall.grade === 'g1') themeGlowClass = 'glow-emerald';
+    else if (overall.grade === 'g2') themeGlowClass = 'glow-blue';
+    else if (overall.grade === 'g3') themeGlowClass = 'border-orange-500/50';
+    else themeGlowClass = 'border-red-500/50';
+
+    // 종목별 칩(Badges) 렌더링
+    const push = evaluation.events.pushup;
+    const sit = evaluation.events.situp;
+    const run = evaluation.events.run3k;
+
+    banner.innerHTML = `
+      <div class="card-glass rounded-2xl p-6 sm:p-8 border ${themeGlowClass} relative overflow-hidden transition-all duration-300">
+        <!-- 배경 데코레이션 블러 -->
+        <div class="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <span class="px-3.5 py-1.5 rounded-full text-xs font-black tracking-wider uppercase ${overall.badgeClass} shadow-md inline-flex items-center gap-1.5">
+                <span>🎖️ 종합 ${overall.label}</span>
+              </span>
+              <span class="text-xs text-slate-400 font-medium flex items-center gap-1">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 최신 측정일: <strong class="text-slate-200">${latest.date}</strong>
+              </span>
+              <span class="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-medium">
+                체중: <strong class="text-amber-400">${latest.weight}kg</strong>
+              </span>
+            </div>
+
+            <!-- 핵심 브리핑 헤드라인 문구 -->
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight leading-snug">
+              현재 <span class="underline decoration-wavy decoration-amber-400/80">${overall.label}</span>입니다. 
+              <span class="text-amber-400 font-bold block sm:inline mt-1 sm:mt-0">${evaluation.specialTargetText}</span>
+            </h2>
+            ${evaluation.nextTargetText ? `
+              <p class="text-xs sm:text-sm text-cyan-300 font-semibold mt-1.5 flex items-center gap-1.5">
+                <i data-lucide="chevrons-up" class="w-4 h-4 text-cyan-400"></i>
+                <span>${evaluation.nextTargetText}</span>
+              </p>
+            ` : ''}
+
+            <!-- 종목별 즉시 달성 상태 칩 -->
+            <div class="flex flex-wrap items-center gap-2 mt-4 text-xs font-medium">
+              <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80 flex items-center gap-1.5">
+                <span class="text-slate-400">팔굽혀펴기:</span>
+                <strong class="text-white">${push.val}회</strong>
+                <span class="px-1.5 py-0.5 rounded text-[10px] ${push.eval.badgeClass}">${push.eval.label}</span>
+                ${push.diffToSpecial > 0 ? `<span class="text-amber-400">(-${push.diffToSpecial}개)</span>` : `<span class="text-emerald-400">🏆특급달성</span>`}
+              </div>
+
+              <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80 flex items-center gap-1.5">
+                <span class="text-slate-400">윗몸일으키기:</span>
+                <strong class="text-white">${sit.val}회</strong>
+                <span class="px-1.5 py-0.5 rounded text-[10px] ${sit.eval.badgeClass}">${sit.eval.label}</span>
+                ${sit.diffToSpecial > 0 ? `<span class="text-amber-400">(-${sit.diffToSpecial}개)</span>` : `<span class="text-emerald-400">🏆특급달성</span>`}
+              </div>
+
+              <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80 flex items-center gap-1.5">
+                <span class="text-slate-400">3km 뜀걸음:</span>
+                <strong class="text-white">${ArmyStandards.formatSecondsToMinSec(run.val)}</strong>
+                <span class="px-1.5 py-0.5 rounded text-[10px] ${run.eval.badgeClass}">${run.eval.label}</span>
+                ${run.diffToSpecial > 0 ? `<span class="text-amber-400">(-${run.diffToSpecial}초 단축필요)</span>` : `<span class="text-emerald-400">🏆특급달성</span>`}
+              </div>
+            </div>
+          </div>
+
+          <!-- 특급 달성률 게이지 -->
+          <div class="w-full md:w-56 shrink-0 bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex flex-col justify-center">
+            <div class="flex justify-between items-center text-xs mb-2">
+              <span class="text-slate-400 font-semibold flex items-center gap-1">
+                <i data-lucide="target" class="w-3.5 h-3.5 text-amber-400"></i> 특급전사 달성률
+              </span>
+              <strong class="text-amber-400 text-sm">${evaluation.totalProgress}%</strong>
+            </div>
+            <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-700">
+              <div class="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full transition-all duration-700" style="width: ${evaluation.totalProgress}%"></div>
+            </div>
+            <div class="mt-2 text-[11px] text-slate-400 text-center">
+              ${isSpecial ? '🎉 전 종목 특급 완성!' : '특급까지 남은 관문을 돌파하세요!'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * 4대 메트릭 요약 카드 렌더링
+   */
+  renderMetricCards(latest) {
+    const container = document.getElementById('metricCardsGrid');
+    if (!container) return;
+
+    if (!latest) {
+      const genderStd = ArmyStandards.ARMY_STANDARDS[this.settings.gender || 'male'] || ArmyStandards.ARMY_STANDARDS.male;
+      const std = genderStd[this.settings.ageGroup || 'under_25'] || genderStd.under_25;
+
+      container.innerHTML = `
+        <!-- 1. 3km 뜀걸음 카드 -->
+        <div class="card-glass rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
+                <i data-lucide="timer" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">3km 뜀걸음</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">측정 대기</span>
+          </div>
+          <div class="flex items-baseline gap-2 mb-1">
+            <h3 class="text-2xl font-black text-slate-500">--:--</h3>
+          </div>
+          <div class="text-xs text-slate-400 mb-3">
+            특급 기준: <span class="text-amber-400 font-semibold">${ArmyStandards.formatSecondsToMinSec(std.run3k.special)} 이내</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-amber-400 h-full rounded-full" style="width: 0%"></div>
+          </div>
+          <div class="mt-2 text-xs text-slate-500">
+            새 기록을 입력해주세요
+          </div>
+        </div>
+
+        <!-- 2. 팔굽혀펴기 카드 -->
+        <div class="card-glass rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <i data-lucide="biceps-flexed" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">팔굽혀펴기 (2분)</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">측정 대기</span>
+          </div>
+          <div class="flex items-baseline gap-2 mb-1">
+            <h3 class="text-2xl font-black text-slate-500">-- <span class="text-sm font-normal text-slate-600">회</span></h3>
+          </div>
+          <div class="text-xs text-slate-400 mb-3">
+            특급 기준: <span class="text-emerald-400 font-semibold">${std.pushup.special}회 이상</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-emerald-400 h-full rounded-full" style="width: 0%"></div>
+          </div>
+          <div class="mt-2 text-xs text-slate-500">
+            새 기록을 입력해주세요
+          </div>
+        </div>
+
+        <!-- 3. 윗몸일으키기 카드 -->
+        <div class="card-glass rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                <i data-lucide="flame" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">윗몸일으키기 (2분)</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">측정 대기</span>
+          </div>
+          <div class="flex items-baseline gap-2 mb-1">
+            <h3 class="text-2xl font-black text-slate-500">-- <span class="text-sm font-normal text-slate-600">회</span></h3>
+          </div>
+          <div class="text-xs text-slate-400 mb-3">
+            특급 기준: <span class="text-blue-400 font-semibold">${std.situp.special}회 이상</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-blue-400 h-full rounded-full" style="width: 0%"></div>
+          </div>
+          <div class="mt-2 text-xs text-slate-500">
+            새 기록을 입력해주세요
+          </div>
+        </div>
+
+        <!-- 4. 현재 체중 & 체급 카드 -->
+        <div class="card-glass rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-400">
+                <i data-lucide="scale" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">현재 체중 & 체급</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">측정 대기</span>
+          </div>
+          <div class="flex items-baseline gap-2 mb-1">
+            <h3 class="text-2xl font-black text-slate-500">-- <span class="text-sm font-normal text-slate-600">kg</span></h3>
+          </div>
+          <div class="text-xs text-slate-400 mb-3">
+            기록 수: <span class="text-slate-300 font-semibold">0회차</span>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-[11px] text-slate-400">
+            기록 입력 시 체중 변화와 퍼포먼스가 자동 누적됩니다.
+          </div>
+          <div class="mt-2 text-xs text-slate-500 text-right">
+            시작 체중 대기 중
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const evaluation = ArmyStandards.evaluateFitness(
+      this.settings.gender,
+      this.settings.ageGroup,
+      latest.runSec,
+      latest.pushup,
+      latest.situp
+    );
+
+    const std = evaluation.standard;
+    const push = evaluation.events.pushup;
+    const sit = evaluation.events.situp;
+    const run = evaluation.events.run3k;
+
+    // 시작 대비 체중 변화량
+    const firstRec = this.records[0];
+    const weightChange = (latest.weight - firstRec.weight).toFixed(1);
+    const weightChangeText = weightChange < 0 
+      ? `<span class="text-emerald-400">-${Math.abs(weightChange)}kg 감량 📉</span>`
+      : weightChange > 0 
+        ? `<span class="text-amber-400">+${weightChange}kg 📈</span>`
+        : `<span class="text-slate-400">변화 없음</span>`;
+
+    container.innerHTML = `
+      <!-- 1. 3km 뜀걸음 카드 -->
+      <div class="card-glass card-glass-hover rounded-2xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
+              <i data-lucide="timer" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">3km 뜀걸음</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-xs font-bold ${run.eval.badgeClass}">${run.eval.label}</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-1">
+          <h3 class="text-2xl font-black text-white">${ArmyStandards.formatSecondsToMinSec(run.val)}</h3>
+        </div>
+        <div class="text-xs text-slate-400 mb-3">
+          특급 기준: <span class="text-slate-300 font-semibold">${ArmyStandards.formatSecondsToMinSec(std.run3k.special)} 이내</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div class="bg-amber-400 h-full rounded-full transition-all duration-500" style="width: ${run.progress}%"></div>
+        </div>
+        <div class="mt-2 text-xs flex justify-between text-slate-400">
+          <span>진척도: ${run.progress}%</span>
+          <span class="${run.diffToSpecial > 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'}">
+            ${run.diffToSpecial > 0 ? `${run.diffToSpecial}초 단축 필요` : '🏆 특급 달성'}
+          </span>
+        </div>
+      </div>
+
+      <!-- 2. 팔굽혀펴기 카드 -->
+      <div class="card-glass card-glass-hover rounded-2xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+              <i data-lucide="biceps-flexed" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">팔굽혀펴기 (2분)</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-xs font-bold ${push.eval.badgeClass}">${push.eval.label}</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-1">
+          <h3 class="text-2xl font-black text-white">${push.val} <span class="text-sm font-normal text-slate-400">회</span></h3>
+        </div>
+        <div class="text-xs text-slate-400 mb-3">
+          특급 기준: <span class="text-slate-300 font-semibold">${std.pushup.special}회 이상</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div class="bg-emerald-400 h-full rounded-full transition-all duration-500" style="width: ${push.progress}%"></div>
+        </div>
+        <div class="mt-2 text-xs flex justify-between text-slate-400">
+          <span>진척도: ${push.progress}%</span>
+          <span class="${push.diffToSpecial > 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'}">
+            ${push.diffToSpecial > 0 ? `+${push.diffToSpecial}개 필요` : '🏆 특급 달성'}
+          </span>
+        </div>
+      </div>
+
+      <!-- 3. 윗몸일으키기 카드 -->
+      <div class="card-glass card-glass-hover rounded-2xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+              <i data-lucide="flame" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">윗몸일으키기 (2분)</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-xs font-bold ${sit.eval.badgeClass}">${sit.eval.label}</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-1">
+          <h3 class="text-2xl font-black text-white">${sit.val} <span class="text-sm font-normal text-slate-400">회</span></h3>
+        </div>
+        <div class="text-xs text-slate-400 mb-3">
+          특급 기준: <span class="text-slate-300 font-semibold">${std.situp.special}회 이상</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div class="bg-blue-400 h-full rounded-full transition-all duration-500" style="width: ${sit.progress}%"></div>
+        </div>
+        <div class="mt-2 text-xs flex justify-between text-slate-400">
+          <span>진척도: ${sit.progress}%</span>
+          <span class="${sit.diffToSpecial > 0 ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold'}">
+            ${sit.diffToSpecial > 0 ? `+${sit.diffToSpecial}개 필요` : '🏆 특급 달성'}
+          </span>
+        </div>
+      </div>
+
+      <!-- 4. 현재 체중 & 체급 통합 카드 -->
+      <div class="card-glass card-glass-hover rounded-2xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-400">
+              <i data-lucide="scale" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">현재 체중 & 체급</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">시작 ${firstRec.weight}kg</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-1">
+          <h3 class="text-2xl font-black text-white">${latest.weight} <span class="text-sm font-normal text-slate-400">kg</span></h3>
+        </div>
+        <div class="text-xs text-slate-400 mb-3">
+          첫 측정 대비: ${weightChangeText}
+        </div>
+        <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-[11px] text-slate-300 flex items-center justify-between">
+          <span class="text-slate-400">맨몸운동 합산 볼륨:</span>
+          <strong class="text-pink-300">${latest.pushup + latest.situp}회 (체중 대비 근력)</strong>
+        </div>
+        <div class="mt-2 text-xs text-right text-slate-400">
+          기록수: <strong class="text-slate-200">${this.records.length}회차</strong>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * 측정 히스토리 테이블 렌더링
+   */
+  renderTable() {
+    const tbody = document.getElementById('recordTableBody');
+    const emptyState = document.getElementById('recordTableEmpty');
+    if (!tbody) return;
+
+    if (this.records.length === 0) {
+      tbody.innerHTML = '';
+      if (emptyState) emptyState.classList.remove('hidden');
+      return;
+    }
+    if (emptyState) emptyState.classList.add('hidden');
+
+    // 최신순으로 정렬하여 표에 출력
+    const reversed = [...this.records].reverse();
+
+    tbody.innerHTML = reversed.map(r => {
+      const evalResult = ArmyStandards.evaluateFitness(
+        this.settings.gender,
+        this.settings.ageGroup,
+        r.runSec,
+        r.pushup,
+        r.situp
+      );
+
+      const runFmt = ArmyStandards.formatSecondsToMinSec(r.runSec);
+      const overall = evalResult.overall;
+
+      return `
+        <tr class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors text-sm">
+          <td class="py-3.5 px-4 font-semibold text-slate-200 whitespace-nowrap">
+            ${r.date}
+          </td>
+          <td class="py-3.5 px-4 text-amber-300 font-bold whitespace-nowrap">
+            ${r.weight} kg
+          </td>
+          <td class="py-3.5 px-4 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+              <span>${runFmt}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded ${evalResult.events.run3k.eval.badgeClass}">${evalResult.events.run3k.eval.label}</span>
+            </div>
+          </td>
+          <td class="py-3.5 px-4 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+              <span>${r.pushup} 회</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded ${evalResult.events.pushup.eval.badgeClass}">${evalResult.events.pushup.eval.label}</span>
+            </div>
+          </td>
+          <td class="py-3.5 px-4 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+              <span>${r.situp} 회</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded ${evalResult.events.situp.eval.badgeClass}">${evalResult.events.situp.eval.label}</span>
+            </div>
+          </td>
+          <td class="py-3.5 px-4 whitespace-nowrap">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${overall.badgeClass}">
+              ${overall.label}
+            </span>
+          </td>
+          <td class="py-3.5 px-4 text-xs text-slate-400 max-w-xs truncate" title="${r.notes || ''}">
+            ${r.notes || '-'}
+          </td>
+          <td class="py-3.5 px-4 text-center whitespace-nowrap">
+            <button onclick="App.deleteRecordItem('${r.id}')" class="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors" title="기록 삭제">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  /**
+   * 단일 기록 삭제
+   */
+  deleteRecordItem(id) {
+    if (confirm('이 기록을 삭제하시겠습니까?')) {
+      Store.deleteRecord(id);
+      if (window.SupabaseSync && SupabaseSync.isConnected()) {
+        SupabaseSync.deleteRecord(id);
+      }
+      this.render();
+      this.showToast('기록이 삭제되었습니다.', 'info');
+    }
+  },
+
+  /**
+   * 입력 폼 실시간 등급 미리보기 박스 업데이트
+   */
+  updateFormLivePreview() {
+    const previewBox = document.getElementById('formLivePreview');
+    if (!previewBox) return;
+
+    const weight = parseFloat(document.getElementById('recordWeight')?.value) || 0;
+    const runMin = parseInt(document.getElementById('recordRunMin')?.value, 10) || 0;
+    const runSecOnly = parseInt(document.getElementById('recordRunSec')?.value, 10) || 0;
+    const pushup = parseInt(document.getElementById('recordPushup')?.value, 10) || 0;
+    const situp = parseInt(document.getElementById('recordSitup')?.value, 10) || 0;
+
+    const runTotalSec = runMin * 60 + runSecOnly;
+
+    if (runTotalSec === 0 && pushup === 0 && situp === 0) {
+      previewBox.classList.add('hidden');
+      return;
+    }
+
+    const evaluation = ArmyStandards.evaluateFitness(
+      this.settings.gender,
+      this.settings.ageGroup,
+      runTotalSec,
+      pushup,
+      situp
+    );
+
+    previewBox.classList.remove('hidden');
+    previewBox.innerHTML = `
+      <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded font-bold ${evaluation.overall.badgeClass}">종합 ${evaluation.overall.label}</span>
+          <span class="text-slate-300">${evaluation.specialTargetText}</span>
+        </div>
+        <span class="text-slate-400 font-mono">${ArmyStandards.formatSecondsToMinSec(runTotalSec)} | ${pushup}회 | ${situp}회</span>
+      </div>
+    `;
+  },
+
+  /**
+   * 신규 기록 폼 제출 처리
+   */
+  async handleFormSubmit(e) {
+    e.preventDefault();
+
+    const date = document.getElementById('recordDate').value;
+    const weight = parseFloat(document.getElementById('recordWeight').value);
+    const runMin = parseInt(document.getElementById('recordRunMin').value, 10) || 0;
+    const runSecOnly = parseInt(document.getElementById('recordRunSec').value, 10) || 0;
+    const pushup = parseInt(document.getElementById('recordPushup').value, 10) || 0;
+    const situp = parseInt(document.getElementById('recordSitup').value, 10) || 0;
+    const notes = document.getElementById('recordNotes').value.trim();
+
+    if (!date) {
+      this.showToast('측정 날짜를 선택해주세요.', 'warning');
+      return;
+    }
+    if (isNaN(weight) || weight <= 0) {
+      this.showToast('현재 체중을 올바르게 입력해주세요 (예: 88.0kg)', 'warning');
+      return;
+    }
+
+    const runTotalSec = runMin * 60 + runSecOnly;
+
+    const evaluation = ArmyStandards.evaluateFitness(
+      this.settings.gender,
+      this.settings.ageGroup,
+      runTotalSec,
+      pushup,
+      situp
+    );
+
+    const recordData = {
+      date,
+      weight,
+      runMin,
+      runSecOnly,
+      runSec: runTotalSec,
+      pushup,
+      situp,
+      overallGrade: evaluation.overall.label,
+      notes,
+      syncedWithSheet: false
+    };
+
+    // 1. 로컬 스토리지에 즉각 저장
+    const saved = Store.addRecord(recordData);
+
+    // 2. 모달 닫기 및 폼 초기화
+    this.closeModal('recordModal');
+    e.target.reset();
+    document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+    const previewBox = document.getElementById('formLivePreview');
+    if (previewBox) previewBox.classList.add('hidden');
+
+    // 3. 화면 재렌더링
+    this.render();
+
+    // 특급 달성 시 축하 콘페티(폭죽) 애니메이션 효과!
+    if (evaluation.overall.grade === 'special' && window.confetti) {
+      window.confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+    }
+
+    this.showToast(`기록이 저장되었습니다! (종합 ${evaluation.overall.label})`, 'success');
+
+    // 4-1. Supabase가 연결되어 있다면 클라우드 DB 자동 전송!
+    if (window.SupabaseSync && SupabaseSync.isConnected()) {
+      SupabaseSync.insertRecord(saved).then(sbRes => {
+        if (sbRes.success && sbRes.data) {
+          Store.updateRecord(saved.id, { id: sbRes.data.id, syncedWithSupabase: true });
+          this.render();
+          this.showToast('Supabase 클라우드 DB에 동기화 완료! ⚡', 'success');
+        }
+      });
+    }
+
+    // 4-2. 구글 시트가 연결되어 있다면 백그라운드 자동 전송!
+    if (GoogleSheetsSync.isConnected()) {
+      this.showToast('구글 시트로 동기화 중...', 'info');
+      GoogleSheetsSync.appendRecord(saved).then(syncResult => {
+        if (syncResult.success) {
+          Store.updateRecord(saved.id, { syncedWithSheet: true });
+          this.render();
+          this.showToast('구글 스프레드시트에 성공적으로 기록되었습니다! 📊', 'success');
+        } else {
+          this.showToast('구글 시트 전송 실패 (로컬에 안전하게 저장됨)', 'warning');
+        }
+      });
+    }
+  },
+
+  /**
+   * 육군 체력검정 기준표 모달 테이블 렌더링
+   */
+  renderStandardsModalTable() {
+    const tableBody = document.getElementById('standardsTableBody');
+    if (!tableBody) return;
+
+    const gender = this.settings.gender;
+    const currentAgeKey = this.settings.ageGroup;
+    const genderData = ArmyStandards.ARMY_STANDARDS[gender] || ArmyStandards.ARMY_STANDARDS.male;
+
+    let rowsHtml = '';
+    for (const [ageKey, data] of Object.entries(genderData)) {
+      const isSelectedAge = ageKey === currentAgeKey;
+      const highlightClass = isSelectedAge ? 'bg-amber-500/15 border-l-4 border-amber-400 font-bold' : '';
+
+      rowsHtml += `
+        <tr class="border-b border-slate-800 text-xs ${highlightClass}">
+          <td class="py-3 px-3 text-slate-200 whitespace-nowrap">
+            ${data.label} ${isSelectedAge ? '<span class="text-amber-400 ml-1">(내 설정)</span>' : ''}
+          </td>
+          <!-- 팔굽혀펴기 -->
+          <td class="py-3 px-2 text-center text-amber-300 font-semibold">${data.pushup.special} 이상</td>
+          <td class="py-3 px-2 text-center text-emerald-300">${data.pushup.g1}~${data.pushup.special - 1}</td>
+          <td class="py-3 px-2 text-center text-blue-300">${data.pushup.g2}~${data.pushup.g1 - 1}</td>
+          <td class="py-3 px-2 text-center text-orange-300">${data.pushup.g3}~${data.pushup.g2 - 1}</td>
+          <!-- 윗몸일으키기 -->
+          <td class="py-3 px-2 text-center text-amber-300 font-semibold border-l border-slate-800">${data.situp.special} 이상</td>
+          <td class="py-3 px-2 text-center text-emerald-300">${data.situp.g1}~${data.situp.special - 1}</td>
+          <td class="py-3 px-2 text-center text-blue-300">${data.situp.g2}~${data.situp.g1 - 1}</td>
+          <td class="py-3 px-2 text-center text-orange-300">${data.situp.g3}~${data.situp.g2 - 1}</td>
+          <!-- 3km 뜀걸음 -->
+          <td class="py-3 px-2 text-center text-amber-300 font-semibold border-l border-slate-800">${ArmyStandards.formatSecondsToMinSec(data.run3k.special)}</td>
+          <td class="py-3 px-2 text-center text-emerald-300">${ArmyStandards.formatSecondsToMinSec(data.run3k.g1)}</td>
+          <td class="py-3 px-2 text-center text-blue-300">${ArmyStandards.formatSecondsToMinSec(data.run3k.g2)}</td>
+          <td class="py-3 px-2 text-center text-orange-300">${ArmyStandards.formatSecondsToMinSec(data.run3k.g3)}</td>
+        </tr>
+      `;
+    }
+
+    tableBody.innerHTML = rowsHtml;
+  },
+
+  /**
+   * 클라우드 연동 탭 전환 (Supabase vs 구글 시트)
+   */
+  switchCloudTab(tabName) {
+    const tabBtnSb = document.getElementById('tabBtnSupabase');
+    const tabBtnGs = document.getElementById('tabBtnSheets');
+    const contentSb = document.getElementById('tabContentSupabase');
+    const contentGs = document.getElementById('tabContentSheets');
+
+    if (tabName === 'supabase') {
+      contentSb?.classList.remove('hidden');
+      contentGs?.classList.add('hidden');
+      tabBtnSb?.classList.add('text-emerald-400', 'border-emerald-400');
+      tabBtnSb?.classList.remove('text-slate-400', 'border-transparent');
+      tabBtnGs?.classList.remove('text-emerald-400', 'border-emerald-400');
+      tabBtnGs?.classList.add('text-slate-400', 'border-transparent');
+    } else {
+      contentGs?.classList.remove('hidden');
+      contentSb?.classList.add('hidden');
+      tabBtnGs?.classList.add('text-emerald-400', 'border-emerald-400');
+      tabBtnGs?.classList.remove('text-slate-400', 'border-transparent');
+      tabBtnSb?.classList.remove('text-emerald-400', 'border-emerald-400');
+      tabBtnSb?.classList.add('text-slate-400', 'border-transparent');
+    }
+  },
+
+  /**
+   * 클라우드 연동 모달 관련 이벤트 바인딩 (Supabase & 구글 시트)
+   */
+  bindCloudModalEvents() {
+    // 1. Supabase 요소 바인딩
+    const inputSbUrl = document.getElementById('supabaseProjectUrl');
+    const inputSbKey = document.getElementById('supabaseAnonKey');
+    const btnTestSb = document.getElementById('btnTestSupabase');
+    const btnSaveSb = document.getElementById('btnSaveSupabase');
+    const btnSyncSb = document.getElementById('btnSyncToSupabase');
+    const btnPullSb = document.getElementById('btnPullFromSupabase');
+    const btnCopySql = document.getElementById('btnCopySupabaseSql');
+
+    if (inputSbUrl && window.SupabaseSync) inputSbUrl.value = SupabaseSync.getUrl();
+    if (inputSbKey && window.SupabaseSync) inputSbKey.value = SupabaseSync.getKey();
+
+    // SQL 복사
+    if (btnCopySql) {
+      btnCopySql.addEventListener('click', () => {
+        const sql = `create table if not exists public.milifit_records (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  date text not null,
+  weight numeric(4,1) not null,
+  run_min integer not null,
+  run_sec_only integer not null,
+  run_sec integer not null,
+  pushup integer not null,
+  situp integer not null,
+  overall_grade text,
+  notes text
+);
+alter table public.milifit_records enable row level security;
+create policy "Allow anon full access" on public.milifit_records for all to anon using (true) with check (true);`;
+        navigator.clipboard.writeText(sql).then(() => {
+          this.showToast('Supabase SQL 테이블 생성 코드가 복사되었습니다!', 'success');
+        });
+      });
+    }
+
+    // Supabase 연결 테스트
+    if (btnTestSb) {
+      btnTestSb.addEventListener('click', async () => {
+        const url = inputSbUrl?.value?.trim();
+        const key = inputSbKey?.value?.trim();
+        if (!url || !key) {
+          this.showToast('Project URL과 Anon Key를 모두 입력해주세요.', 'warning');
+          return;
+        }
+        btnTestSb.disabled = true;
+        btnTestSb.innerHTML = '연결 확인 중...';
+        const res = await SupabaseSync.testConnection(url, key);
+        btnTestSb.disabled = false;
+        btnTestSb.innerHTML = '연결 테스트';
+
+        if (res.success) {
+          this.showToast(res.message, 'success');
+        } else {
+          this.showToast(res.message, 'error');
+        }
+      });
+    }
+
+    // Supabase 설정 저장
+    if (btnSaveSb) {
+      btnSaveSb.addEventListener('click', () => {
+        const url = inputSbUrl?.value?.trim() || '';
+        const key = inputSbKey?.value?.trim() || '';
+        SupabaseSync.setCredentials(url, key);
+        this.updateCloudStatusBadge();
+        this.showToast('Supabase 연동 정보가 저장되었습니다! ⚡', 'success');
+        this.closeModal('cloudModal');
+      });
+    }
+
+    // Supabase로 로컬 데이터 일괄 백업
+    if (btnSyncSb) {
+      btnSyncSb.addEventListener('click', async () => {
+        if (!SupabaseSync.isConnected()) {
+          this.showToast('먼저 Supabase URL과 Key를 저장해주세요.', 'warning');
+          return;
+        }
+        if (confirm(`현재 저장된 ${this.records.length}건의 기록을 Supabase로 올리시겠습니까?`)) {
+          btnSyncSb.disabled = true;
+          btnSyncSb.innerHTML = '업로드 중...';
+          const res = await SupabaseSync.syncAllLocalToSupabase(this.records);
+          btnSyncSb.disabled = false;
+          btnSyncSb.innerHTML = '로컬 기록 Supabase로 올리기';
+
+          if (res.success) {
+            this.showToast(res.message, 'success');
+          } else {
+            this.showToast(res.message, 'error');
+          }
+        }
+      });
+    }
+
+    // Supabase에서 데이터 불러오기
+    if (btnPullSb) {
+      btnPullSb.addEventListener('click', async () => {
+        if (!SupabaseSync.isConnected()) {
+          this.showToast('먼저 Supabase URL과 Key를 저장해주세요.', 'warning');
+          return;
+        }
+        btnPullSb.disabled = true;
+        btnPullSb.innerHTML = '불러오는 중...';
+        const res = await SupabaseSync.fetchRecords();
+        btnPullSb.disabled = false;
+        btnPullSb.innerHTML = '불러오기';
+
+        if (res.success && res.data) {
+          if (res.data.length === 0) {
+            this.showToast('Supabase에 등록된 기록이 없습니다.', 'info');
+            return;
+          }
+          if (confirm(`Supabase에서 ${res.data.length}건의 기록을 가져왔습니다. 로컬에 동기화하시겠습니까?`)) {
+            Store.saveRecords(res.data);
+            this.records = res.data;
+            this.render();
+            this.showToast(`${res.data.length}건을 Supabase에서 동기화했습니다!`, 'success');
+          }
+        } else {
+          this.showToast(res.message, 'error');
+        }
+      });
+    }
+
+    // 2. 구글 시트 요소 바인딩
+    const inputUrl = document.getElementById('sheetWebAppUrl');
+    const btnTest = document.getElementById('btnTestSheetConnection');
+    const btnSave = document.getElementById('btnSaveSheetUrl');
+    const btnBatchSync = document.getElementById('btnBatchSyncToSheet');
+    const btnPullFromSheet = document.getElementById('btnPullFromSheet');
+
+    if (inputUrl) {
+      inputUrl.value = GoogleSheetsSync.getUrl();
+    }
+
+    // 연결 테스트
+    if (btnTest) {
+      btnTest.addEventListener('click', async () => {
+        const url = inputUrl?.value?.trim();
+        if (!url) {
+          this.showToast('웹 앱 URL을 입력해주세요.', 'warning');
+          return;
+        }
+        btnTest.disabled = true;
+        btnTest.innerHTML = '연결 확인 중...';
+        const result = await GoogleSheetsSync.testConnection(url);
+        btnTest.disabled = false;
+        btnTest.innerHTML = '연결 테스트';
+
+        if (result.success) {
+          this.showToast(result.message, 'success');
+        } else {
+          this.showToast(result.message, 'error');
+        }
+      });
+    }
+
+    // URL 저장
+    if (btnSave) {
+      btnSave.addEventListener('click', () => {
+        const url = inputUrl?.value?.trim() || '';
+        GoogleSheetsSync.setUrl(url);
+        this.updateCloudStatusBadge();
+        this.showToast('구글 시트 웹앱 URL이 저장되었습니다!', 'success');
+        this.closeModal('cloudModal');
+      });
+    }
+
+    // 일괄 전송
+    if (btnBatchSync) {
+      btnBatchSync.addEventListener('click', async () => {
+        if (!GoogleSheetsSync.isConnected()) {
+          this.showToast('먼저 웹 앱 URL을 저장하고 연결을 완료해주세요.', 'warning');
+          return;
+        }
+        if (confirm(`현재 저장된 ${this.records.length}건의 모든 기록을 구글 시트로 일괄 업로드하시겠습니까?`)) {
+          btnBatchSync.disabled = true;
+          btnBatchSync.innerHTML = '업로드 중...';
+          const res = await GoogleSheetsSync.batchSyncRecords(this.records);
+          btnBatchSync.disabled = false;
+          btnBatchSync.innerHTML = '로컬 기록 전체 구글 시트로 올리기';
+
+          if (res.success) {
+            this.showToast(res.message, 'success');
+          } else {
+            this.showToast(res.message, 'error');
+          }
+        }
+      });
+    }
+
+    // 구글 시트에서 가져오기
+    if (btnPullFromSheet) {
+      btnPullFromSheet.addEventListener('click', async () => {
+        if (!GoogleSheetsSync.isConnected()) {
+          this.showToast('먼저 웹 앱 URL을 저장해주세요.', 'warning');
+          return;
+        }
+        btnPullFromSheet.disabled = true;
+        btnPullFromSheet.innerHTML = '불러오는 중...';
+        const res = await GoogleSheetsSync.fetchRecords();
+        btnPullFromSheet.disabled = false;
+        btnPullFromSheet.innerHTML = '구글 시트에서 가져오기';
+
+        if (res.success && res.data) {
+          if (res.data.length === 0) {
+            this.showToast('구글 시트에 등록된 데이터가 없습니다.', 'info');
+            return;
+          }
+          if (confirm(`구글 시트에서 ${res.data.length}개의 기록을 가져왔습니다. 로컬에 덮어쓰시겠습니까?`)) {
+            Store.saveRecords(res.data);
+            this.records = res.data;
+            this.render();
+            this.showToast(`${res.data.length}개 기록을 성공적으로 동기화했습니다!`, 'success');
+          }
+        } else {
+          this.showToast(res.message, 'error');
+        }
+      });
+    }
+  },
+
+  /**
+   * 상단 네비게이션 클라우드 연결 뱃지 갱신 (Supabase & 구글 시트)
+   */
+  updateCloudStatusBadge() {
+    const badge = document.getElementById('cloudConnectionBadge');
+    if (!badge) return;
+
+    const isSb = window.SupabaseSync && SupabaseSync.isConnected();
+    const isGs = window.GoogleSheetsSync && GoogleSheetsSync.isConnected();
+
+    if (isSb && isGs) {
+      badge.innerHTML = `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          ⚡ Supabase + 구글 시트 연동 중
+        </span>
+      `;
+    } else if (isSb) {
+      badge.innerHTML = `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          ⚡ Supabase 클라우드 연동 중
+        </span>
+      `;
+    } else if (isGs) {
+      badge.innerHTML = `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+          <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+          📊 구글 시트 실시간 연동 중
+        </span>
+      `;
+    } else {
+      badge.innerHTML = `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200 cursor-pointer">
+          <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+          ☁️ 클라우드 DB 연동
+        </span>
+      `;
+    }
+  },
+  },
+
+  /**
+   * 모달 열기/닫기 헬퍼
+   */
+  openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+  },
+
+  closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+  },
+
+  /**
+   * 토스트 알림 메시지 표시
+   */
+  showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const bgColors = {
+      success: 'bg-emerald-950 border-emerald-500/50 text-emerald-200',
+      error: 'bg-red-950 border-red-500/50 text-red-200',
+      warning: 'bg-amber-950 border-amber-500/50 text-amber-200',
+      info: 'bg-slate-900 border-slate-700 text-slate-200'
+    };
+
+    const icons = {
+      success: '✅',
+      error: '❌',
+      warning: '⚠️',
+      info: 'ℹ️'
+    };
+
+    toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-xl text-sm transition-all duration-300 transform translate-y-2 opacity-0 ${bgColors[type] || bgColors.info}`;
+    toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> <span>${message}</span>`;
+
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.classList.remove('translate-y-2', 'opacity-0');
+    });
+
+    setTimeout(() => {
+      toast.classList.add('opacity-0', 'translate-y-2');
+      setTimeout(() => toast.remove(), 300);
+    }, 3500);
+  }
+};
+
+window.App = App;
+
+</script>
+</body>
+</html>

@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>밀리핏 트래커 | 육군 3대 체력검정 & 체급 대시보드</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#F59E0B',
+              emerald: '#10B981',
+              blue: '#3B82F6',
+              dark: '#0B0F19'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti (특급 달성 축하 효과) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="min-h-screen bg-[#070A12] text-slate-100 flex flex-col">
+
+  <!-- ========================================================================= -->
+  <!-- Top Navigation Header -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-[#090D18]/90 backdrop-blur-md border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+          <i data-lucide="shield-alert" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-black text-white tracking-tight">밀리핏 트래커</h1>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">ROK ARMY FIT</span>
+          </div>
+          <p class="text-xs text-slate-400">육군 3대 체력검정 & 체급 통합 과부하 대시보드</p>
+        </div>
+      </div>
+
+      <!-- User Profile & Quick Actions -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        
+        <!-- 연령대 및 성별 셀렉터 -->
+        <div class="hidden sm:flex items-center gap-2 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 text-xs">
+          <select id="userGender" class="bg-transparent text-slate-200 px-2 py-1 rounded font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer">
+            <option value="male" class="bg-slate-900 text-white">남군</option>
+            <option value="female" class="bg-slate-900 text-white">여군</option>
+          </select>
+          <span class="text-slate-600">|</span>
+          <select id="userAgeGroup" class="bg-transparent text-slate-200 px-2 py-1 rounded font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer">
+            <option value="under_25" class="bg-slate-900 text-white">만 25세 이하</option>
+            <option value="age_26_30" class="bg-slate-900 text-white">만 26 ~ 30세</option>
+            <option value="age_31_35" class="bg-slate-900 text-white">만 31 ~ 35세</option>
+            <option value="age_36_40" class="bg-slate-900 text-white">만 36 ~ 40세</option>
+            <option value="age_41_45" class="bg-slate-900 text-white">만 41 ~ 45세</option>
+            <option value="age_46_50" class="bg-slate-900 text-white">만 46 ~ 50세</option>
+            <option value="over_51" class="bg-slate-900 text-white">만 51세 이상</option>
+          </select>
+        </div>
+
+        <!-- 기준표 모달 열기 -->
+        <button onclick="App.openModal('standardsModal')" class="p-2 sm:px-3 sm:py-2 text-xs font-semibold text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl transition-colors flex items-center gap-1.5" title="육군 체력검정 기준표">
+          <i data-lucide="book-open" class="w-4 h-4 text-slate-400"></i>
+          <span class="hidden md:inline">기준표</span>
+        </button>
+
+        <!-- 클라우드 DB 연동 버튼 (Supabase & 구글 시트) -->
+        <button onclick="App.openModal('cloudModal')" id="cloudConnectionBadge" class="transition-all" title="클라우드 데이터베이스 연동 설정">
+          <!-- JS에서 동적 주입 -->
+        </button>
+
+        <!-- 신규 기록 측정 입력 CTA 버튼 -->
+        <button onclick="App.openModal('recordModal')" class="px-4 py-2 text-sm font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>새 기록 입력</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- Main Dashboard Content -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- 1. 최상단 특급 달성 타겟 브리핑 배너 -->
+    <section id="topBriefingBanner">
+      <!-- App.js에서 동적 렌더링 -->
+    </section>
+
+    <!-- 2. 4대 종목 및 체급 지표 카드 그리드 -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-300 flex items-center gap-2">
+          <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+          종목별 최신 수행 기록 및 특급 관문 분석
+        </h3>
+        <span class="text-xs text-slate-400">최신 기록 기준 산출</span>
+      </div>
+      <div id="metricCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- App.js에서 동적 렌더링 -->
+      </div>
+    </section>
+
+    <!-- 3. 우상향 성장 차트 시각화 섹션 -->
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-extrabold text-white flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-5 h-5 text-amber-400"></i>
+            우상향 성장 차트 & 점진적 과부하 시각화
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            뜀걸음(시간 단축)과 맨몸운동(개수 증가) 모두 단련될수록 우상향하는 성취감을 실시간 확인합니다.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-1.5 text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> 팔굽 우상향
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-blue-400 font-semibold bg-blue-500/10 px-2.5 py-1 rounded-md border border-blue-500/20">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span> 윗몸 우상향
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span> 3km 상향(단축 우수 ↑)
+          </span>
+        </div>
+      </div>
+
+      <!-- 메인 3대 종목 점진적 과부하 차트 -->
+      <div class="card-glass rounded-2xl p-6 border border-slate-800 relative">
+        <div class="h-80 sm:h-96 w-full">
+          <canvas id="mainProgressChart"></canvas>
+        </div>
+        <!-- 차트 빈 상태 안내 -->
+        <div id="chartEmptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 rounded-2xl backdrop-blur-sm text-center p-6">
+          <i data-lucide="trending-up" class="w-12 h-12 text-slate-600 mb-3"></i>
+          <h4 class="text-base font-bold text-slate-300">저장된 측정 기록이 없습니다</h4>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm">
+            상단의 <strong>[새 기록 입력]</strong> 버튼을 눌러 첫 기록을 등록하시면 모든 종목의 우상향 성장 곡선이 생성됩니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 측정 히스토리 테이블 섹션 -->
+    <section class="card-glass rounded-2xl p-6 border border-slate-800">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="list" class="w-5 h-5 text-slate-400"></i>
+            체력 측정 히스토리 기록부
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">날짜별 3대 종목 측정 기록 및 종합 등급 판정 결과</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnExportCsv" class="px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> CSV 다운로드
+          </button>
+          <button id="btnReloadSample" class="px-3 py-1.5 text-xs font-semibold text-amber-400/90 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition-colors flex items-center gap-1.5">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 8주 샘플 복원
+          </button>
+          <button id="btnClearAll" class="px-3 py-1.5 text-xs font-semibold text-red-400/80 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors">
+            전체 비우기
+          </button>
+        </div>
+      </div>
+
+      <!-- 기록 테이블 -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-900/60">
+              <th class="py-3 px-4">측정일자</th>
+              <th class="py-3 px-4">체중(kg)</th>
+              <th class="py-3 px-4">3km 뜀걸음</th>
+              <th class="py-3 px-4">팔굽혀펴기(2분)</th>
+              <th class="py-3 px-4">윗몸일으키기(2분)</th>
+              <th class="py-3 px-4">종합 등급</th>
+              <th class="py-3 px-4">메모 / 컨디션</th>
+              <th class="py-3 px-4 text-center">관리</th>
+            </tr>
+          </thead>
+          <tbody id="recordTableBody">
+            <!-- App.js에서 렌더링 -->
+          </tbody>
+        </table>
+
+        <!-- 빈 상태 표시 -->
+        <div id="recordTableEmpty" class="hidden py-12 text-center text-slate-400">
+          <i data-lucide="inbox" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+          <p class="text-sm">저장된 측정 기록이 없습니다.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- Footer -->
+  <!-- ========================================================================= -->
+  <footer class="mt-12 border-t border-slate-800/80 bg-[#060810] py-6 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <p>대한민국 국방부 부대관리훈령 별표 31 체력검정 기준표 준용</p>
+      <p class="text-slate-400">밀리핏 트래커 (MiliFit) &bull; 구글 스프레드시트 실시간 동기화 지원</p>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: 새 기록 측정 입력 폼 모달 -->
+  <!-- ========================================================================= -->
+  <div id="recordModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="card-glass rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl p-6 sm:p-8 relative">
+      
+      <!-- 닫기 버튼 -->
+      <button onclick="App.closeModal('recordModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-6">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">3대 종목 & 체중 측정 기록</h3>
+          <p class="text-xs text-slate-400">오늘의 측정 결과를 입력하면 실시간 등급이 계산됩니다.</p>
+        </div>
+      </div>
+
+      <form id="recordForm" class="space-y-4">
+        
+        <!-- 측정일자 & 현재 체중 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">측정 일자 *</label>
+            <input type="date" id="recordDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">현재 체중 (kg) *</label>
+            <div class="relative">
+              <input type="number" id="recordWeight" step="0.1" min="30" max="200" placeholder="예: 88.0" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">kg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3km 뜀걸음 (분, 초) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">3km 뜀걸음 완주 시간 *</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="relative">
+              <input type="number" id="recordRunMin" min="0" max="60" placeholder="13" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">분</span>
+            </div>
+            <div class="relative">
+              <input type="number" id="recordRunSec" min="0" max="59" placeholder="30" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">초</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 팔굽혀펴기 & 윗몸일으키기 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">팔굽혀펴기 (2분) *</label>
+            <div class="relative">
+              <input type="number" id="recordPushup" min="0" max="250" placeholder="예: 64" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">회</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">윗몸일으키기 (2분) *</label>
+            <div class="relative">
+              <input type="number" id="recordSitup" min="0" max="250" placeholder="예: 82" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10" />
+              <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-semibold">회</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 메모 / 컨디션 -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">컨디션 / 훈련 메모 (선택)</label>
+          <input type="text" id="recordNotes" placeholder="예: 야간 러닝, 호흡 안정적, 85kg 진입" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+
+        <!-- 실시간 등급 미리보기 박스 -->
+        <div id="formLivePreview" class="hidden transition-all"></div>
+
+        <!-- 제출 버튼 -->
+        <div class="pt-2 flex items-center justify-end gap-3">
+          <button type="button" onclick="App.closeModal('recordModal')" class="px-4 py-2.5 text-sm font-semibold text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-xl transition-colors">
+            취소
+          </button>
+          <button type="submit" class="px-6 py-2.5 text-sm font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>기록 저장 및 분석</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: 클라우드 & 데이터베이스 연동 설정 (Supabase & 구글 시트) -->
+  <!-- ========================================================================= -->
+  <div id="cloudModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="card-glass rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      
+      <button onclick="App.closeModal('cloudModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30">
+          <i data-lucide="cloud-cog" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">클라우드 데이터베이스 연동</h3>
+          <p class="text-xs text-slate-400">Vercel 배포용 Supabase 또는 구글 스프레드시트와 실시간 연동합니다.</p>
+        </div>
+      </div>
+
+      <!-- 탭 선택기 (Supabase / Google Sheets) -->
+      <div class="flex border-b border-slate-800 mb-5">
+        <button id="tabBtnSupabase" onclick="App.switchCloudTab('supabase')" class="flex-1 pb-3 text-xs sm:text-sm font-bold text-emerald-400 border-b-2 border-emerald-400 flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="zap" class="w-4 h-4"></i>
+          <span>⚡ Supabase (Vercel 배포용)</span>
+        </button>
+        <button id="tabBtnSheets" onclick="App.switchCloudTab('sheets')" class="flex-1 pb-3 text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="table" class="w-4 h-4"></i>
+          <span>📊 구글 스프레드시트</span>
+        </button>
+      </div>
+
+      <!-- 1. Supabase 연동 탭 내용 -->
+      <div id="tabContentSupabase" class="space-y-4">
+        
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2">
+          <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Supabase 1분 연동 3단계
+          </div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-400 leading-relaxed">
+            <li><a href="https://supabase.com" target="_blank" class="text-emerald-400 underline">supabase.com</a> 가입/로그인 후 [New Project] 생성</li>
+            <li>좌측 메뉴 [SQL Editor] &rarr; [New Query]에 아래 테이블 생성 SQL 실행</li>
+            <li>[Project Settings] &rarr; [API] 에서 <strong>Project URL</strong>과 <strong>anon public API key</strong> 복사 후 아래 입력</li>
+          </ol>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Project URL</label>
+          <input type="url" id="supabaseProjectUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Anon Public Key</label>
+          <input type="password" id="supabaseAnonKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" />
+        </div>
+
+        <!-- SQL 코드 복사 아코디언 -->
+        <div class="border border-slate-800 rounded-xl p-3 bg-slate-950">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-400 flex items-center gap-1">
+              <i data-lucide="database" class="w-3.5 h-3.5 text-emerald-400"></i> 테이블 생성 SQL
+            </span>
+            <button id="btnCopySupabaseSql" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold border border-slate-700 transition-colors flex items-center gap-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i> SQL 복사
+            </button>
+          </div>
+          <pre class="text-[10px] text-slate-500 font-mono overflow-x-auto max-h-24 p-2 bg-slate-900 rounded">create table if not exists public.milifit_records (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  date text not null,
+  weight numeric(4,1) not null,
+  run_min integer not null,
+  run_sec_only integer not null,
+  run_sec integer not null,
+  pushup integer not null,
+  situp integer not null,
+  overall_grade text,
+  notes text
+);
+alter table public.milifit_records enable row level security;
+create policy "Allow anon full access" on public.milifit_records for all to anon using (true) with check (true);</pre>
+        </div>
+
+        <!-- 버튼 영역 -->
+        <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-800">
+          <div class="flex items-center gap-2">
+            <button id="btnTestSupabase" class="px-4 py-2 text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors whitespace-nowrap">
+              연동 테스트
+            </button>
+            <button id="btnSyncToSupabase" class="text-xs px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl transition-colors whitespace-nowrap">
+              로컬 기록 Supabase로 올리기
+            </button>
+            <button id="btnPullFromSupabase" class="text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold border border-slate-700 rounded-xl transition-colors whitespace-nowrap">
+              불러오기
+            </button>
+          </div>
+          
+          <button id="btnSaveSupabase" class="px-6 py-2.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+            Supabase 설정 저장
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 2. Google Sheets 연동 탭 내용 -->
+      <div id="tabContentSheets" class="space-y-4 hidden">
+        
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 space-y-2">
+          <div class="font-bold text-amber-400 flex items-center gap-1.5">
+            <i data-lucide="help-circle" class="w-4 h-4"></i> 구글 시트 1분 연동 3단계
+          </div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-400 leading-relaxed">
+            <li>구글 드라이브에서 <strong>새 스프레드시트</strong>를 만듭니다.</li>
+            <li>상단 메뉴 <strong class="text-slate-200">[확장 프로그램] &rarr; [Apps Script]</strong>를 엽니다.</li>
+            <li><strong class="text-slate-200">Code.gs</strong>에 연동 코드를 넣고 [새 배포] &rarr; [웹 앱]으로 배포합니다.</li>
+            <li>발급된 <strong>웹 앱 URL</strong>을 아래 입력칸에 붙여넣고 [저장]하면 완료!</li>
+          </ol>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">웹 앱 URL (Web App URL)</label>
+          <div class="flex gap-2">
+            <input type="url" id="sheetWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" />
+            <button id="btnTestSheetConnection" class="px-4 py-2 text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors whitespace-nowrap">
+              연결 테스트
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-800">
+          <div class="flex items-center gap-2">
+            <button id="btnBatchSyncToSheet" class="text-xs px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl transition-colors">
+              로컬 기록 전체 구글 시트로 올리기
+            </button>
+            <button id="btnPullFromSheet" class="text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold border border-slate-700 rounded-xl transition-colors">
+              구글 시트에서 가져오기
+            </button>
+          </div>
+          
+          <button id="btnSaveSheetUrl" class="px-6 py-2.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+            URL 저장 완료
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: 육군 체력검정 기준표 전체 조회 모달 -->
+  <!-- ========================================================================= -->
+  <div id="standardsModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="card-glass rounded-2xl w-full max-w-4xl border border-slate-700 shadow-2xl p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      
+      <button onclick="App.closeModal('standardsModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">육군 체력검정 등급 기준표 (공식)</h3>
+          <p class="text-xs text-slate-400">국방부 부대관리훈령 별표 31 기준 (종목 중 최저 등급이 최종 종합 등급으로 결정됨)</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-700 text-xs text-slate-400 bg-slate-900/90">
+              <th rowspan="2" class="py-2.5 px-3 border-r border-slate-800">연령대</th>
+              <th colspan="4" class="py-2 text-center text-emerald-400 font-bold border-r border-slate-800">팔굽혀펴기 (2분, 회)</th>
+              <th colspan="4" class="py-2 text-center text-blue-400 font-bold border-r border-slate-800">윗몸일으키기 (2분, 회)</th>
+              <th colspan="4" class="py-2 text-center text-amber-400 font-bold">3km 뜀걸음 (완주시간)</th>
+            </tr>
+            <tr class="border-b border-slate-800 text-[10px] text-slate-400 bg-slate-900/60">
+              <th class="py-1 px-2 text-center text-amber-300">특급</th>
+              <th class="py-1 px-2 text-center text-emerald-300">1급</th>
+              <th class="py-1 px-2 text-center text-blue-300">2급</th>
+              <th class="py-1 px-2 text-center text-orange-300">3급</th>
+              <th class="py-1 px-2 text-center text-amber-300 border-l border-slate-800">특급</th>
+              <th class="py-1 px-2 text-center text-emerald-300">1급</th>
+              <th class="py-1 px-2 text-center text-blue-300">2급</th>
+              <th class="py-1 px-2 text-center text-orange-300">3급</th>
+              <th class="py-1 px-2 text-center text-amber-300 border-l border-slate-800">특급</th>
+              <th class="py-1 px-2 text-center text-emerald-300">1급</th>
+              <th class="py-1 px-2 text-center text-blue-300">2급</th>
+              <th class="py-1 px-2 text-center text-orange-300">3급</th>
+            </tr>
+          </thead>
+          <tbody id="standardsTableBody">
+            <!-- App.js에서 렌더링 -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-400">
+        💡 <strong>합격 기준:</strong> 세 종목 모두 3급 이상이어야 합격이며, 단 1종목이라도 3급 미달(기준 미달) 시 불합격 처리됩니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- Application Modules -->
+  <script src="js/standards.js"></script>
+  <script src="js/sheets.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
